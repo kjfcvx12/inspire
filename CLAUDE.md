@@ -11,15 +11,28 @@ Python 3.11 · uv · FastAPI/Streamlit · scikit-learn · SQLite(또는 Supabase
 - 중요한 설계 결정은 이유를 한 줄로 설명한다(발표용). 결정 로그는 docs/decisions.md에 적는다.
 - 샘플 입력으로 테스트 1~2개 + 엣지 케이스 확인.
 - API 키는 .env 사용, 커밋 금지. API 실패 시 mock 폴백.
+- 작업 내역은 docs/history.md에 영어로 기록하고, 사용자에게는 한글로 보여준다. 읽을 때는 상단 `Current State`만 읽으면 전체를 파악할 수 있고, 갱신 때마다 이를 최신 누적 요약으로 다시 쓴다.
+- 발표에 쓸 수치는 커밋된 스크립트·테스트로 재현 가능해야 한다. `decisions.md`의 시각은 추측하지 말고 실제 시각으로 적는다.
+- 사용자에게 묻는 것은 방향성과 정말 중요한 것(되돌리기 어려운 결정, 요구사항 해석)만이다. 그 외에는 합리적 기본값으로 진행하고 한 줄로 알린다.
 
 ## 명령어
-- 설치: `uv sync`
-- 예측 스타터: `uv run python starters/predict/train.py data.csv target_col`
-- RAG/Agent 스타터: `uv run streamlit run starters/rag_agent/app.py`
-- 테스트: `uv run pytest -q`
+활성화된 환경(conda `work` 또는 uv `.venv`)에서 실행한다. uv를 쓰면 앞에 `uv run`을 붙인다.
+- 설치: `uv sync` (conda는 `conda activate work`, 선택 패키지는 `uv sync --extra extras`)
+- 시작 시각 기록: `python scripts/start.py` (결정 로그 파일은 Edit/Write 도구나 파이썬으로만 수정한다. PowerShell `Get-Content`/`Set-Content`는 한글이 깨질 수 있다)
+- 하네스(한 번에 검사): `python scripts/check.py` (`--api`를 붙이면 API 실호출까지 확인)
+- 예측 스타터: `python starters/predict/train.py data.csv target_col`
+- RAG/Agent 스타터: `streamlit run starters/rag_agent/app.py`
+- 테스트: `pytest -q`
+- 실제 API 비용 리포트(발표용): `python scripts/cost_report.py` (호출마다 `logs/usage.jsonl`에 자동 기록. 새 API 호출 코드는 `starters/common/usage_log.py`의 `record()`를 붙인다)
 
 ## 시간 배분(120분)
-분석 10 · 설계 10 · 구현 65 · 검증 10 · 발표 준비 15 · 여유 10
+분석 10 · 설계 10 · 구현 65 · 검증 10 · 발표 준비 15 · 여유 10 (기능 동결 85분)
+
+## 루프·하네스·에이전트
+- 흐름: `/plan` → `/harness`(설계 단계) → `/build-loop`(구현 반복) → `/checkpoint`(20분마다) → `/timecheck`(수시) → `/present` → `/demo-ready`
+- 루프 엔지니어링: 완료 조건(실행 가능한 검사) → 작게 구현 → 실행 → 검증 → 수정. 같은 증상 3회 실패 또는 15분이면 접근을 바꾼다.
+- 하네스 엔지니어링: 모델 바깥의 안전장치(`scripts/check.py`, `tests/`, 골든 입력, mock 폴백, 반복 한도, 권한)를 먼저 만든다.
+- 에이전트(`.claude/agents/`): `verifier`(독립 검증, 코드 수정 안 함), `interviewer`(면접관 역할 예상 질문)
 
 ## 검증·분할 원칙
 - AI 결과(코드, 데이터, 수치)는 그대로 믿지 않고 직접 실행·열람해 확인한다. 확인 못 한 것은 "미확인"으로 말한다.
