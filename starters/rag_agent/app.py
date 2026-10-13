@@ -6,7 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 load_dotenv()
-MODEL = "claude-sonnet-4-5"  # 필요 시 변경
+MODEL = "claude-sonnet-5-5"
 DOCS_DIR = os.environ.get("DOCS_DIR", "data")
 
 
