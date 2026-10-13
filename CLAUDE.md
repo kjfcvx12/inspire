@@ -11,6 +11,7 @@ Python 3.11 · uv · FastAPI/Streamlit · scikit-learn · SQLite(또는 Supabase
 - 중요한 설계 결정은 이유를 한 줄로 설명한다(발표용). 결정 로그는 docs/decisions.md에 적는다.
 - 샘플 입력으로 테스트 1~2개 + 엣지 케이스 확인.
 - API 키는 .env 사용, 커밋 금지. API 실패 시 mock 폴백.
+- 면접 작업은 `python scripts/new_project.py <이름> --type rag|predict|blank`로 만든 `projects/<이름>/` 폴더 안에서만 한다(그 폴더만 옮기면 단독 실행·검사됨). 스킬이 말하는 `docs/decisions.md`·`scripts/check.py`·`tests/`·`.env`는 그 폴더 안의 것이다. 폴더 밖(키트) 파일은 키트 자체의 버그가 아니면 수정하지 않는다.
 - 작업 내역은 docs/history.md에 영어로 기록하고, 사용자에게는 한글로 보여준다. 읽을 때는 상단 `Current State`만 읽으면 전체를 파악할 수 있고, 갱신 때마다 이를 최신 누적 요약으로 다시 쓴다.
 - 발표에 쓸 수치는 커밋된 스크립트·테스트로 재현 가능해야 한다. `decisions.md`의 시각은 추측하지 말고 실제 시각으로 적는다.
 - 사용자가 "클리어"라고 쓰면 정상 종료 절차를 진행한다: ① `docs/history.md`에 이번 작업의 Entry 추가와 `Current State` 갱신 ② `python scripts/check.py` 실행 ③ 변경 사항 커밋(비밀값·`.env` 제외) ④ 작업 트리·미푸시 개수를 보고하고 `/clear`를 안내한다. 푸시는 "클리어 푸시"라고 쓴 경우에만 한다.
@@ -19,7 +20,8 @@ Python 3.11 · uv · FastAPI/Streamlit · scikit-learn · SQLite(또는 Supabase
 ## 명령어
 활성화된 환경(conda `work` 또는 uv `.venv`)에서 실행한다. uv를 쓰면 앞에 `uv run`을 붙인다.
 - 설치: `uv sync` (conda는 `conda activate work`, 선택 패키지는 `uv sync --extra extras`)
-- 시작 시각 기록: `python scripts/start.py` (결정 로그 파일은 Edit/Write 도구나 파이썬으로만 수정한다. PowerShell `Get-Content`/`Set-Content`는 한글이 깨질 수 있다)
+- 작업 폴더 생성: `python scripts/new_project.py <이름> --type rag|predict|blank` → `projects/<이름>/` (이후 그 폴더의 `scripts/check.py` 등을 사용. 단독 동작은 `tests/test_new_project.py`가 검증)
+- 시작 시각 기록: `python scripts/start.py` (프로젝트 폴더의 `scripts/start.py`는 그 폴더의 decisions.md를 갱신한다. 결정 로그 파일은 Edit/Write 도구나 파이썬으로만 수정한다. PowerShell `Get-Content`/`Set-Content`는 한글이 깨질 수 있다)
 - 하네스(한 번에 검사): `python scripts/check.py` (`--api`를 붙이면 API 실호출까지 확인)
 - 예측 스타터: `python starters/predict/train.py data.csv target_col`
 - RAG/Agent 스타터: `streamlit run starters/rag_agent/app.py`
@@ -30,7 +32,9 @@ Python 3.11 · uv · FastAPI/Streamlit · scikit-learn · SQLite(또는 Supabase
 분석 10 · 설계 10 · 구현 65 · 검증 10 · 발표 준비 15 · 여유 10 (기능 동결 85분)
 
 ## 루프·하네스·에이전트
-- 흐름: `/plan` → `/harness`(설계 단계) → `/build-loop`(구현 반복) → `/checkpoint`(20분마다) → `/timecheck`(수시) → `/present` → `/demo-ready`
+- 흐름: `/plan` → `/new-project`(작업 폴더) → `/harness`(설계 단계) → `/build-loop`(구현 반복) → `/checkpoint`(20분마다) → `/timecheck`(수시) → `/eval`·`/edge-cases`(검증) → `/present` → `/demo-ready` (요청 시 `/share-out`)
+- 공통 모듈(`starters/common/`, 작업 폴더에 복사됨): `llm`(호출·재시도·mock 폴백·캐싱·스트리밍·비용 기록), `structured`(pydantic 구조화 출력), `db`(SQLite), `evalkit`(골든셋 평가), `edgecases`(엣지 입력). LLM 호출은 anthropic을 직접 쓰지 말고 `common.llm`을 거친다. Sonnet 5.5는 강제 `tool_choice`가 400이므로 구조화 출력은 `structured`를 쓴다.
+- MCP(`.mcp.json`, 버전 고정): `playwright`(데모 화면 확인), `context7`(라이브러리 문서). Notion·Drive·Canva는 계정 커넥터로 연결되어 있고 `/share-out`으로만 쓴다(게시 전 확인).
 - 루프 엔지니어링: 완료 조건(실행 가능한 검사) → 작게 구현 → 실행 → 검증 → 수정. 같은 증상 3회 실패 또는 15분이면 접근을 바꾼다.
 - 하네스 엔지니어링: 모델 바깥의 안전장치(`scripts/check.py`, `tests/`, 골든 입력, mock 폴백, 반복 한도, 권한)를 먼저 만든다.
 - 에이전트(`.claude/agents/`): `verifier`(독립 검증, 코드 수정 안 함), `interviewer`(면접관 역할 예상 질문)

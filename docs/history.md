@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 012, 2026-10-14)
+## Current State (cumulative, as of Entry 016, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -23,6 +23,8 @@
 - Environments: `base` (Python 3.13.12) and `work` (Python 3.12.15). The old 3.10 `fastapi`/`work` env and the temporary `interview` env were deleted.
 - `work` has all `pyproject.toml` deps: anthropic 1.13.0, scikit-learn 1.9.1, pandas 3.0.6, streamlit 1.65.0, fastapi 0.143.0, uvicorn 0.54.0, python-dotenv 1.2.4, pytest 9.1.1.
 - Extras in `work`: uv 0.13.0, langfuse 4.17.0, supabase 2.32.0, matplotlib 3.11.2. `pip check` is clean.
+- Pre-installed for the interview (Entry 013): core deps `ruff` 0.17.0, `openpyxl` 3.1.5, `plotly` 7.1.0, `tenacity` 9.2.1; extras `rank-bm25` 0.2.2 (RAG), `lightgbm` 4.7.0 + `shap` 0.53.0 (prediction), `kiwipiepy` 0.24.0 (Korean tokenizing). All declared in `pyproject.toml`. Not installed on purpose: torch/sentence-transformers/chromadb/faiss (slow download), langchain (opaque).
+- `pyproject.toml` has `[tool.ruff]` (line-length 120, rules E/F/W). `scripts/check.py` runs ruff as a WARN-level step (lint never blocks the flow).
 - System-wide: GitHub CLI `gh` 2.102.0 (winget; not logged in), git, Node.js, VS Code. System Python is 3.14.3 (unused).
 
 **Interview kit additions (Entry 007)**
@@ -33,6 +35,19 @@
 - `CLAUDE.md`: commands now plain `python`/`streamlit`/`pytest` (prefix `uv run` if using uv), added the ask-only-direction rule and a loop/harness/agent section. `pyproject.toml`: optional extra `extras = [langfuse, supabase, matplotlib]`. `docs/decisions.md`: START line template.
 - Stored two feedback memories (ask only about direction; history.md convention).
 - Real API cost tracking (Entry 008): `starters/common/usage_log.py` records every call's tokens, USD (price table dated 2026-10-06, to be re-verified) and stop_reason to `logs/usage.jsonl` (gitignored; no prompt content). `starters/rag_agent/app.py` records each call and shows per-question and cumulative cost in the UI. `scripts/cost_report.py` prints a presentation-ready table; `check.py --api` also logs its ping. `/present` now pulls the cost report into "결과·한계".
+
+**Portable work folder (Entry 014)**
+- `python scripts/new_project.py <name> --type rag|predict|blank [--dest DIR]` creates `projects/<name>/`: starter code, `common/usage_log.py`, copies of `scripts/{check,cost_report,start}.py`, `tests/test_smoke.py`, `docs/decisions.md`, `requirements.txt` (`>=` installed versions), `.env.example`, `.gitignore`, `ruff.toml`, `pytest.ini`, README. It refuses to overwrite and never copies `.env`.
+- Skill `/new-project` wraps it. `CLAUDE.md` rule: all interview work happens inside `projects/<name>/`; skills' `docs/decisions.md`, `scripts/check.py`, `tests/` mean that folder's own files.
+- To make copies standalone: `starters/common/usage_log.py` finds its root by the nearest `pyproject.toml`/`requirements.txt`; `rag_agent/app.py`, `check.py`, `cost_report.py` put both the folder and its parent on `sys.path`. Kit-level `check.py`/ruff/pytest skip `projects/` (each project has its own harness).
+- `tests/test_new_project.py` (6 tests, 11 total) scaffolds into pytest `tmp_path` (outside the repo = "moved" case) and runs the copy's own `check.py`; mutation (old `parents[2]` root) made the log-path test fail as intended, then reverted.
+
+**Common modules, MCP, extra skills (Entry 015)**
+- `starters/common/` (copied into every scaffold): `llm.py` (tenacity retry on 429/5xx/connection only, usage recording, system-block prompt caching, mock fallback, `stream_text`, refusal → fallback; SDK's own retries off), `structured.py` (`messages.parse(output_format=Model)` + error-note re-ask + fallback; no forced `tool_choice` because Sonnet 5.5 returns 400), `db.py` (SQLite `Store`, parameterized only, no file created on read), `evalkit.py` + `scripts/eval.py` (golden JSONL: contains/regex/range/approx/judge; exit 1 below `--min-pass`; writes `logs/eval_last.json`), `edgecases.py` (`TEXT_EDGES`, `frame_edges`).
+- Starters now use them: `rag_agent/app.py` (llm.create, Store history sidebar, no re-ask on rerun, tool input not trusted), `predict/train.py` (`fit_and_score()` + input validation). Scaffold adds `eval/golden.jsonl`, `scripts/eval.py`, pydantic, edge/golden/offline tests, `*.db` ignored.
+- MCP: `.mcp.json` pins `@playwright/mcp@0.0.83` (Chrome) and `@upstash/context7-mcp@4.4.1`; `enabledMcpjsonServers` + allow `mcp__context7` in `.claude/settings.json`. Both packages were executed once (version/help) outside the repo. Notion, Google Drive and Canva are account-level connectors; a read-only call to each succeeded (Canva has no brand kits).
+- Skills added: `/eval`, `/edge-cases`, `/share-out` (publishes to Notion/Drive/Canva only on request, after confirmation and a secrets check). `CLAUDE.md` documents flow, modules and MCP.
+- Tests: `tests/test_common_modules.py` (21, fake SDK client) + scaffold tests; 32 total. Mutations (retry 4xx, retry mid-stream, drop usage record, ignore refusal) each failed a test, then reverted.
 
 **Rehearsal (Entry 010)**
 - Ran the full flow once on a dummy topic (breast-cancer classifier, no API) in a scratch copy of the kit; report in `docs/rehearsal-report.md`. Elapsed ~7 min is AI execution time, not human time (not usable as a 120-min estimate).
@@ -47,13 +62,40 @@
 - Not verified: the new skills/agents were not invoked yet; `--api` path and real usage logging not run against the live API (no key); possible `max_tokens=1024` truncation with default-on thinking on Sonnet 5.5 is unmeasured (report flags `truncated` calls).
 
 **Open items / caveats**
-- `.env` not created yet. Copy `.env.example` to `.env` and fill `ANTHROPIC_API_KEY` (user must enter keys).
+- `.env` exists but `ANTHROPIC_API_KEY` is empty/unset (harness WARN). The user must enter the key.
+- `uv.lock` / `.venv` do not exist; the real environment is conda `work`. `pip install` into `work` was used, so a fresh `uv sync` was not tested with the new deps (unverified).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- All kit changes are committed and pushed to `origin/claude/wizardly-gates-yc1p6c` (first push 2026-10-14 covered 0aa1ede..ad54446). `.vscode/` stays untracked.
+- Everything up to Entry 012 is pushed to `origin/claude/wizardly-gates-yc1p6c` (0aa1ede..8aa21ff). Entries 013-015 changes are uncommitted. `.vscode/` and `1.txt` stay untracked.
+- Not verified: new skills (`/new-project`, `/eval`, `/edge-cases`, `/share-out`) not invoked as slash commands; real `streamlit run` and any live API call (no key) — retry/fallback/caching/streaming/structured output were tested only against a fake client, so real cache hits and `messages.parse` behavior are unconfirmed; Playwright/context7 were not started as MCP servers inside Claude Code (needs a new session + approval, Chrome install assumed); `/share-out` never publishes in tests; `pip install -r requirements.txt` into a fresh env not run.
+- Server-side refusal `fallbacks` (beta) are not enabled; refusals are surfaced as mock fallback instead.
+- Session operation (discussed, nothing built): one writer session per project folder; extra sessions only read (summary) or publish finished, committed artifacts (`/share-out`). Offered but not built: read-only `scripts/status.py` and `docs/sessions.md`. Whether the interview rules allow multiple sessions is unknown.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
 ## Log (newest first)
+
+### Entry 016 — 2026-10-14 — Explanations and wrap-up
+- Explained Playwright/context7 roles and caveats; discussed splitting work into reader / worker / external-publisher sessions (recommendation: single writer, others read-only). No code changes.
+- "클리어" wrap-up: harness run, Entries 013-016 committed locally in two commits (code+config, docs). Not pushed.
+
+### Entry 015 — 2026-10-14 — Common modules, MCP, extra skills
+- User asked to connect Playwright + context7 + Notion/Drive/Canva and to implement all six suggested techniques plus the extra skill candidates.
+- Built `llm`, `structured`, `db`, `evalkit`/`eval.py`, `edgecases`; wired into starters and scaffold; added `/eval`, `/edge-cases`, `/share-out`; `.mcp.json`; docs/rules updated.
+- Defects found by tests while building: ruff E402/E501 in generated projects (twice), tenacity `initial` deprecation, `pandas._append` private API, noisy Streamlit warnings in `eval.py`; all fixed.
+- Result: harness 4 PASS / 1 WARN (no API key) / 0 FAIL, pytest 32 passed, ruff clean; scaffolded rag project runs `eval.py` end to end.
+
+### Entry 014 — 2026-10-14 — Self-contained work folder scaffold
+- User asked for a separate folder per job so that moving only that folder yields a usable project (also asked about MCP/skills/techniques to add; answered as recommendations only, nothing built).
+- Added `scripts/new_project.py`, `.claude/skills/new-project/SKILL.md`, `tests/test_new_project.py`; adjusted `usage_log.py`, `rag_agent/app.py`, `check.py`, `cost_report.py` (path assumptions), `pyproject.toml` (pytest `testpaths`, ruff exclude `projects`), `CLAUDE.md` (rule + command).
+- Bugs found by the new tests while building: unused imports in generated smoke test and an E402 introduced by my `app.py` edit (both made the generated project's ruff WARN) — fixed; one test bug (`"FAIL" in stdout` matched the summary "0 FAIL").
+- Result: kit harness 4 PASS / 1 WARN (no API key) / 0 FAIL, pytest 11 passed; scaffolded rag/predict/blank each reach PASS compile/ruff/pytest standalone.
+
+### Entry 013 — 2026-10-14 — Pre-install interview packages and add lint to the harness
+- User asked to install recommended packages ahead of time (interview time is scarce). Installed into conda `work`: ruff, openpyxl, plotly, tenacity, rank-bm25, lightgbm, shap, kiwipiepy. Chose lightgbm over xgboost (lighter, one comparison model is enough).
+- `pyproject.toml`: ruff/openpyxl/plotly/tenacity in dependencies; rank-bm25/lightgbm/shap/kiwipiepy in `extras`; added `[tool.ruff]` config.
+- `scripts/check.py`: new `check_lint()` (WARN-level, skipped with a message if ruff is missing). The first ruff run found 1 issue (multiple imports on one line in `starters/rag_agent/app.py`), fixed.
+- Verified: all new packages import under `python -I`; kiwipiepy tokenizes Korean correctly from a UTF-8 file (garbling seen with `python -c` came from shell argument encoding, not the library); `pip check` clean; harness 4 PASS / 1 WARN (no API key) / 0 FAIL, pytest 5 passed.
+- Not verified: starters do not use the new packages yet (BM25/LightGBM/SHAP are available but not wired in); `uv sync` from a clean checkout not run.
 
 ### Entry 012 — 2026-10-14 — Push and "클리어" wrap-up protocol
 - Added a wrap-up rule to `CLAUDE.md` and memory: on "클리어" update this history file, run the harness, commit, report state and unpushed count, then the user runs `/clear`; push only on "클리어 푸시".
