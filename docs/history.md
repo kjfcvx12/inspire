@@ -50,14 +50,14 @@
 - `.env` not created yet. Copy `.env.example` to `.env` and fill `ANTHROPIC_API_KEY` (user must enter keys).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- All kit changes are committed locally on `claude/wizardly-gates-yc1p6c` (commits 0aa1ede, eb4147c, d84f6c2 and a follow-up); nothing pushed. `.vscode/` stays untracked.
+- All kit changes are committed and pushed to `origin/claude/wizardly-gates-yc1p6c` (first push 2026-10-14 covered 0aa1ede..ad54446). `.vscode/` stays untracked.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
 ## Log (newest first)
 
 ### Entry 012 — 2026-10-14 — Push and "클리어" wrap-up protocol
 - Added a wrap-up rule to `CLAUDE.md` and memory: on "클리어" update this history file, run the harness, commit, report state and unpushed count, then the user runs `/clear`; push only on "클리어 푸시".
-- Pushed the local commits to `origin/claude/wizardly-gates-yc1p6c` at the user's request (result recorded in the final report of this session).
+- Pushed the local commits to `origin/claude/wizardly-gates-yc1p6c` at the user's request (f6af838..ad54446, exit 0), then a final doc-only commit to keep this file accurate.
 
 ### Entry 011 — 2026-10-14 — Committed all changes locally
 - Three logical commits (harness/cost/tests; skills/agents/rules; docs) plus this history update. Secret scan found nothing; `.env`, `logs/`, `.vscode/` were not committed. Not pushed.
