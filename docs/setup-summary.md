@@ -4,7 +4,7 @@
 
 ## 1. 한눈에 보기
 - 목적: 주제 당일 공개 → 120분 구현 → 3분 발표. "계획 → 하네스 → 반복 구현 → 저장점 → 발표" 흐름을 스킬·에이전트·스크립트로 고정해 둔 키트.
-- 저장소: `https://github.com/kjfcvx12/inspire` (브랜치 `claude/wizardly-gates-yc1p6c`, `main` 없음). 변경 사항은 아직 로컬 수정 상태(미커밋).
+- 저장소: `https://github.com/kjfcvx12/inspire` (브랜치 `claude/wizardly-gates-yc1p6c`, `main` 없음). 변경 사항은 로컬에 커밋됨(미푸시).
 - Claude Code 기본값: 모델 Sonnet 5.5, effort `high` (`/model`, `/effort`로 변경).
 
 ## 2. 환경
@@ -98,5 +98,5 @@
 - `.env` 미생성, API 키 실호출·비용 실측 미수행(비용 기록 기능은 가짜 클라이언트로만 검증)
 - 새 스킬·에이전트는 아직 한 번도 호출해 보지 않음
 - 단가표는 2026-10-06 자료 기준 — 발표 전 콘솔에서 재확인
-- 변경 사항 미커밋·미푸시, `.vscode/`는 untracked
+- 변경 사항은 로컬에 커밋됨(미푸시), `.vscode/`는 untracked
 - Anthropic API는 유일한 유료 요소. Langfuse·Supabase는 무료 플랜(Supabase는 7일 미사용 시 일시중지)

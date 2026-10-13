@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 010, 2026-10-14)
+## Current State (cumulative, as of Entry 011, 2026-10-14)
 
 > Setup overview for humans: `docs/setup-summary.md` (Korean, includes optimization recommendations).
 
@@ -48,10 +48,13 @@
 - `.env` not created yet. Copy `.env.example` to `.env` and fill `ANTHROPIC_API_KEY` (user must enter keys).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- All kit changes are uncommitted local edits (plus untracked `.vscode/`); nothing pushed.
+- All kit changes are committed locally on `claude/wizardly-gates-yc1p6c` (commits 0aa1ede, eb4147c, d84f6c2 and a follow-up); nothing pushed. `.vscode/` stays untracked.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
 ## Log (newest first)
+
+### Entry 011 — 2026-10-14 — Committed all changes locally
+- Three logical commits (harness/cost/tests; skills/agents/rules; docs) plus this history update. Secret scan found nothing; `.env`, `logs/`, `.vscode/` were not committed. Not pushed.
 
 ### Entry 010 — 2026-10-14 — Rehearsal on a dummy topic and kit fixes
 - Copied the kit to a scratch dir (removed the copied `.env` immediately, never read it), ran plan → golden tests → implementation → CV comparison → demo (AppTest) → checkpoint → verifier → presentation → interviewer → fixes → mutation test.
