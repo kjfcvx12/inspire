@@ -6,7 +6,9 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 011, 2026-10-14)
+## Current State (cumulative, as of Entry 012, 2026-10-14)
+
+> Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
 > Setup overview for humans: `docs/setup-summary.md` (Korean, includes optimization recommendations).
 
@@ -52,6 +54,10 @@
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
 ## Log (newest first)
+
+### Entry 012 — 2026-10-14 — Push and "클리어" wrap-up protocol
+- Added a wrap-up rule to `CLAUDE.md` and memory: on "클리어" update this history file, run the harness, commit, report state and unpushed count, then the user runs `/clear`; push only on "클리어 푸시".
+- Pushed the local commits to `origin/claude/wizardly-gates-yc1p6c` at the user's request (result recorded in the final report of this session).
 
 ### Entry 011 — 2026-10-14 — Committed all changes locally
 - Three logical commits (harness/cost/tests; skills/agents/rules; docs) plus this history update. Secret scan found nothing; `.env`, `logs/`, `.vscode/` were not committed. Not pushed.

@@ -13,6 +13,7 @@ Python 3.11 · uv · FastAPI/Streamlit · scikit-learn · SQLite(또는 Supabase
 - API 키는 .env 사용, 커밋 금지. API 실패 시 mock 폴백.
 - 작업 내역은 docs/history.md에 영어로 기록하고, 사용자에게는 한글로 보여준다. 읽을 때는 상단 `Current State`만 읽으면 전체를 파악할 수 있고, 갱신 때마다 이를 최신 누적 요약으로 다시 쓴다.
 - 발표에 쓸 수치는 커밋된 스크립트·테스트로 재현 가능해야 한다. `decisions.md`의 시각은 추측하지 말고 실제 시각으로 적는다.
+- 사용자가 "클리어"라고 쓰면 정상 종료 절차를 진행한다: ① `docs/history.md`에 이번 작업의 Entry 추가와 `Current State` 갱신 ② `python scripts/check.py` 실행 ③ 변경 사항 커밋(비밀값·`.env` 제외) ④ 작업 트리·미푸시 개수를 보고하고 `/clear`를 안내한다. 푸시는 "클리어 푸시"라고 쓴 경우에만 한다.
 - 사용자에게 묻는 것은 방향성과 정말 중요한 것(되돌리기 어려운 결정, 요구사항 해석)만이다. 그 외에는 합리적 기본값으로 진행하고 한 줄로 알린다.
 
 ## 명령어
