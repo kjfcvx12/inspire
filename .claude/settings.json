@@ -20,10 +20,12 @@
       "WebSearch",
       "WebFetch",
       "Bash(curl:*)",
-      "Bash(wget:*)"
+      "Bash(wget:*)",
+      "mcp__context7"
     ],
     "deny": [
       "Read(.env)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": ["playwright", "context7"]
 }

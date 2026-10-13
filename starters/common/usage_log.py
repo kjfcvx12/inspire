@@ -5,7 +5,17 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+def _find_root() -> Path:
+    """가장 가까운 상위 폴더 중 pyproject.toml/requirements.txt가 있는 곳 = 프로젝트 루트.
+    레포(starters/common) 안에서도, 옮겨진 projects/<이름>/common 안에서도 같은 규칙으로 동작한다."""
+    here = Path(__file__).resolve()
+    for p in here.parents:
+        if (p / "pyproject.toml").exists() or (p / "requirements.txt").exists():
+            return p
+    return here.parents[1]
+
+
+ROOT = _find_root()
 
 # model: (input, output, cache_read) USD per 1M tokens. 캐시 쓰기는 입력 단가의 1.25배로 가정한다.
 # Haiku의 cache_read는 입력의 0.1배로 가정한 값이다.

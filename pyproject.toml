@@ -2,7 +2,22 @@
 name = "interview"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["anthropic", "scikit-learn", "pandas", "streamlit", "fastapi", "uvicorn", "python-dotenv", "pytest"]
+dependencies = [
+    "anthropic", "scikit-learn", "pandas", "streamlit", "fastapi", "uvicorn", "python-dotenv", "pytest",
+    "ruff", "openpyxl", "plotly", "tenacity",
+]
 
 [project.optional-dependencies]
-extras = ["langfuse", "supabase", "matplotlib"]
+# langfuse/supabase: 선택 연동, matplotlib: 정적 차트
+# rank-bm25: RAG 검색 개선, lightgbm/shap: 예측 비교·설명, kiwipiepy: 한국어 형태소 분석
+extras = ["langfuse", "supabase", "matplotlib", "rank-bm25", "lightgbm", "shap", "kiwipiepy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]  # projects/<이름>/tests는 각 프로젝트에서 따로 실행
+
+[tool.ruff]
+line-length = 120
+exclude = [".venv", "data", "logs", "projects"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]

@@ -4,7 +4,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "starters"))
+_ROOT = Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(_ROOT), str(_ROOT / "starters")]  # 레포와 단독 프로젝트 모두 지원
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from common import usage_log  # noqa: E402
 

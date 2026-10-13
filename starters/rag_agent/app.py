@@ -1,17 +1,27 @@
-"""RAG + tool-calling Agent 스타터 (Streamlit). docs/ 폴더의 .txt/.md를 검색 소스로 사용."""
-import glob, os, sys
+"""RAG + tool-calling Agent 스타터 (Streamlit). data/ 폴더의 .txt/.md를 검색 소스로 사용.
+호출은 common.llm(재시도·mock 폴백·캐싱·비용 기록), 질문 기록은 common.db(SQLite)를 쓴다."""
+import glob
+import os
+import sys
 from pathlib import Path
+
 import streamlit as st
 from dotenv import load_dotenv
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common.usage_log import record, summary  # 호출별 토큰·비용 기록(logs/usage.jsonl)
+HERE = Path(__file__).resolve().parent
+sys.path[:0] = [str(HERE), str(HERE.parent)]  # starters/ 안에서도, projects/<이름>/ 단독으로도 common을 찾는다
+from common import llm  # noqa: E402
+from common.db import Store  # noqa: E402
+from common.usage_log import summary  # noqa: E402  호출별 토큰·비용 기록(logs/usage.jsonl)
 
 load_dotenv()
-MODEL = "claude-sonnet-5-5"
+MODEL = llm.MODEL
 DOCS_DIR = os.environ.get("DOCS_DIR", "data")
+MAX_STEPS = 5
+SYSTEM = ("당신은 제공된 문서 검색 결과만 근거로 답하는 도우미입니다. 근거가 없으면 모른다고 답하고, "
+          "답변 끝에 근거로 쓴 출처 파일 경로를 적습니다.")
 
 
 def load_chunks(size=500):
@@ -40,28 +50,38 @@ TOOLS = [{"name": "search", "description": "문서 검색",
 
 
 def ask(question: str) -> str:
+    msgs = [{"role": "user", "content": question}]
     try:
-        import anthropic
-        client = anthropic.Anthropic()
-        msgs = [{"role": "user", "content": question}]
-        for _ in range(5):  # agent loop
-            r = client.messages.create(model=MODEL, max_tokens=1024, tools=TOOLS, messages=msgs)
-            record(MODEL, r.usage, tag="rag_agent", stop_reason=r.stop_reason)
+        for _ in range(MAX_STEPS):  # agent loop
+            r = llm.create(model=MODEL, max_tokens=2048, system=SYSTEM, tools=TOOLS, messages=msgs,
+                           tag="rag_agent")
             if r.stop_reason != "tool_use":
-                return "".join(b.text for b in r.content if b.type == "text")
+                return llm.text_of(r)
             msgs.append({"role": "assistant", "content": r.content})
-            results = [{"type": "tool_result", "tool_use_id": b.id, "content": search(**b.input)}
+            results = [{"type": "tool_result", "tool_use_id": b.id,
+                        "content": search(str((b.input or {}).get("query", "")))}  # 모델이 준 입력은 믿지 않는다
                        for b in r.content if b.type == "tool_use"]
             msgs.append({"role": "user", "content": results})
-    except Exception as e:  # mock 폴백
+    except llm.LLMUnavailable as e:  # mock 폴백
         return f"(mock) API 실패: {e}\n\n검색 결과:\n{search(question)}"
     return "반복 한도 초과"
 
 
 st.title("RAG Agent Starter")
+store = Store()
 q = st.text_input("질문")
-if q:
+if q and q != st.session_state.get("last_q"):  # 화면이 다시 그려질 때마다 API를 또 부르지 않는다
     before = summary()["usd"]
-    st.write(ask(q))
+    answer = ask(q)
     s = summary()
-    st.caption(f"이번 질문 ≈ ${s['usd'] - before:.4f} · 누적 ${s['usd']:.4f} ({s['calls']}회 호출)")
+    st.session_state.update(last_q=q, last_a=answer,
+                            last_cost=f"이번 질문 ≈ ${s['usd'] - before:.4f} · 누적 ${s['usd']:.4f} "
+                                      f"({s['calls']}회 호출, 캐시 읽기 {s['cache_read']:,} 토큰)")
+    store.add("qa", {"q": q, "a": answer, "usd": round(s["usd"] - before, 6)})
+if st.session_state.get("last_q") == q and q:
+    st.write(st.session_state.get("last_a"))
+    st.caption(st.session_state.get("last_cost"))
+with st.sidebar:
+    st.subheader("최근 질문")
+    for row in store.list("qa", 10):
+        st.caption(f"{row['ts']} · {row['data']['q'][:40]}")

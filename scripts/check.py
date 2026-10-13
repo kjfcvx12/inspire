@@ -7,9 +7,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 os.chdir(ROOT)
-sys.path.insert(0, str(ROOT / "starters"))
+sys.path[:0] = [str(ROOT), str(ROOT / "starters")]  # 레포(starters/common)와 단독 프로젝트(./common) 모두 지원
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-SKIP = {".venv", ".git", "__pycache__", "node_modules"}
+SKIP = {".venv", ".git", "__pycache__", "node_modules", "projects"}  # projects/<이름>은 각자의 check.py로 검사
 levels = []
 
 
@@ -30,6 +30,18 @@ def check_compile():
         add("FAIL", "compile", ", ".join(bad))
     else:
         add("PASS", "compile", f"{len(files)} files")
+
+
+def check_lint():
+    r = subprocess.run([sys.executable, "-m", "ruff", "check", ".", "--output-format", "concise"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if "No module named ruff" in r.stderr:
+        add("WARN", "ruff", "미설치 — 건너뜀 (pip install ruff)")
+    elif r.returncode == 0:
+        add("PASS", "ruff", "no issues")
+    else:  # 린트는 흐름을 막지 않도록 WARN. 문제 첫 줄만 보여준다
+        lines = [ln for ln in r.stdout.splitlines() if ln.strip() and not ln.startswith(("Found", "[*]", "No fixes"))]
+        add("WARN", "ruff", f"{len(lines)} issues, 예: {lines[0] if lines else r.stdout.strip()[:80]}")
 
 
 def check_tests():
@@ -76,6 +88,7 @@ def check_api():
 
 if __name__ == "__main__":
     check_compile()
+    check_lint()
     check_tests()
     check_env()
     if "--api" in sys.argv:
