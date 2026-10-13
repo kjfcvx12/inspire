@@ -1,0 +1,6 @@
+{
+  "permissions": {
+    "allow": ["Bash(uv:*)", "Bash(python:*)", "Bash(pytest:*)", "Bash(git add:*)", "Bash(git commit:*)", "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(streamlit:*)", "Bash(uvicorn:*)"],
+    "deny": ["Read(.env)"]
+  }
+}
