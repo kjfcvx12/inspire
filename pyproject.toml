@@ -3,3 +3,6 @@ name = "interview"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = ["anthropic", "scikit-learn", "pandas", "streamlit", "fastapi", "uvicorn", "python-dotenv", "pytest"]
+
+[project.optional-dependencies]
+extras = ["langfuse", "supabase", "matplotlib"]

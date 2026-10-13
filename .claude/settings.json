@@ -1,14 +1,20 @@
 {
+  "env": {
+    "PYTHONUTF8": "1"
+  },
   "permissions": {
     "allow": [
       "Bash(uv:*)",
       "Bash(python:*)",
+      "Bash(pip:*)",
+      "Bash(conda:*)",
       "Bash(pytest:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
+      "Bash(git push:*)",
       "Bash(streamlit:*)",
       "Bash(uvicorn:*)",
       "WebSearch",
