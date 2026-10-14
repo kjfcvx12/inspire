@@ -51,7 +51,15 @@ TOOLS = [{"name": "search", "description": "문서 검색",
           "input_schema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}]
 
 
+MAX_QUESTION_CHARS = 2000  # 이보다 긴 입력은 API에 보내지 않는다(비용·지연 방지)
+
+
 def ask(question: str) -> str:
+    question = (question or "").strip()
+    if not question:  # 빈 질문을 보내면 API가 400을 돌려주고 원시 오류가 화면에 노출된다
+        return "질문을 입력해 주세요."
+    if len(question) > MAX_QUESTION_CHARS:
+        return f"질문이 너무 깁니다(최대 {MAX_QUESTION_CHARS}자). 핵심만 줄여서 다시 입력해 주세요."
     msgs = [{"role": "user", "content": question}]
     try:
         for _ in range(MAX_STEPS):  # agent loop

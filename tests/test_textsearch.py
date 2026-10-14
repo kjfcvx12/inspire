@@ -53,3 +53,18 @@ def test_plain_tfidf_baseline_fails_on_korean():
     texts = [t for _, t in DOCS]
     v = TfidfVectorizer().fit(texts)
     assert cosine_similarity(v.transform(["배송 며칠 걸려요"]), v.transform(texts))[0].max() == 0
+
+
+def test_common_word_alone_does_not_pull_unrelated_doc(mode):
+    """'신청' 같은 흔한 단어 하나만 겹치는 무관한 질의가 문서를 끌어오지 않는다(커버리지 게이트)."""
+    docs = [
+        ("refund.md", "상품 수령 후 7일 이내에 환불을 신청할 수 있습니다."),
+        ("ship.md", "결제 완료 후 영업일 기준 2일 내에 택배가 도착합니다."),
+        ("member.md", "마이페이지에서 회원 탈퇴를 신청할 수 있습니다."),
+    ]
+    idx = textsearch.Index(docs)
+    q = "화성 이주 신청은 어디서 하나요"
+    assert idx.search(q, 3, min_coverage=0.0)                  # 게이트를 끄면 오탐이 재현된다
+    assert idx.search("환불 신청 기간", 3)[0][0] == 0           # 정상 질의는 두 모드 모두 그대로 찾는다
+    if mode == "kiwi":                                          # 형태소 모드 기본값(0.25)에서 오탐이 사라진다
+        assert idx.search(q, 3) == []

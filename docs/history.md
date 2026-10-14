@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 018, 2026-10-14)
+## Current State (cumulative, as of Entry 019, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -16,7 +16,7 @@
 - Local folder `C:\Users\강민구\Desktop\0` is a git repo connected to `https://github.com/kjfcvx12/inspire` (remote `origin`).
 - Only remote branch is `claude/wizardly-gates-yc1p6c` (also remote HEAD); checked out locally with tracking. No `main` branch.
 - Project is an "Interview Kit" for a 2-hour vibe-coding interview (stack and rules in `CLAUDE.md`; skills `/plan`, `/present`, `/demo-ready` in `.claude/skills/`; starters in `starters/predict` and `starters/rag_agent`).
-- `.vscode/`, `1.txt` (a local note) and `.playwright-mcp/` are git-ignored. `uv.lock` is committed (Entry 018). Entries 013-017 are on origin; Entry 018 (2 commits) is committed locally and not pushed.
+- `.vscode/`, `1.txt` (a local note) and `.playwright-mcp/` are git-ignored. `uv.lock` is committed. Entries up to 018 are on origin (pushed at the start of Entry 019); Entry 019 commits are local and not pushed (push needs "클리어 푸시").
 
 **Python environment**
 - Conda lives at `C:\ProgramData\anaconda3` and is **not on PATH**. Activate with: `conda activate work` (in Anaconda Prompt), or call `C:\ProgramData\anaconda3\envs\work\python.exe` directly.
@@ -56,6 +56,15 @@
 - `tests/test_textsearch.py` (7 tests, kiwi and bigram paths, empty/symbol-only input, plain-TF-IDF baseline = 0). 39 tests total.
 - Limits: keyword-only (no synonym match; sentence-transformers hybrid not wired); only a 3-document toy corpus, so no accuracy number exists; Streamlit app not run end-to-end.
 
+**Retrieval stack and project-local .env (Entry 019)**
+- Scaffold `.env`: `new_project.py` copies the kit `.env` into the project folder (file copy, value never read or printed; `--no-env` skips). Code reads only the project-root `.env` via `common/envload.py` (no upward search), so moving the folder carries the key and a nested folder cannot pick up a parent's key. Tests cover copy, no-leak into other files, and no-parent-pickup.
+- `kiwipiepy` and `pypdf` are core dependencies in `pyproject.toml` and active in the RAG scaffold `requirements.txt`; `sentence-transformers` is a commented optional line there.
+- `common/docloader.py`: txt/md/pdf to overlapping chunks (PDF source gets `#pN`); unreadable files are returned in `skipped` with a reason (non-UTF-8, empty, no text layer, encrypted/corrupt) instead of raising.
+- `common/embedsearch.py`: BM25 + embedding hybrid via reciprocal rank fusion; default model `intfloat/multilingual-e5-small` (query/passage prefixes), falls back to BM25 if the model cannot load; `SEARCH_MODE=hybrid` enables it; the Streamlit app caches the index and shows mode/skipped files in the sidebar.
+- `common/retrieval_eval.py` + `scripts/eval_retrieval.py` + `eval/retrieval_demo.jsonl` (+ `data/demo_faq`, 8 docs / 13 questions). Measured: BM25 hit@3 73% / MRR 0.73, hybrid(e5-small) 100% / 0.88, hit@1 73% vs 82%. Embedding search cannot abstain on out-of-corpus questions (0/2; similarities cluster at 0.8-0.9), so abstention stays with the LLM prompt; `min_sim` defaults to 0. MiniLM-multilingual was worse and is not the default.
+- Skills actually invoked on a scratch project: `/new-project` (5 PASS), `/eval` (golden 9/10 -> 10/10), `/edge-cases`, `/share-out` (safety check only). Defects they exposed: (1) a single common word ("신청") pulled an unrelated doc -> idf-weighted query-coverage gate in `textsearch` (0.25 morph / 0.1 bigram; bigram at 0.25 had dropped hit rate to 53%, caught by an existing test); (2) blank question caused an API 400 whose raw error and request id reached the UI -> `ask()` now rejects blank and >2000-char input without an API call. Prompt-injection probe (live API) refused cleanly with no key/prompt leak.
+- Final live check: scaffolded project run with `SEARCH_MODE=hybrid` in Streamlit via Playwright; the paraphrase question that BM25 misses was answered from `refund.md`.
+
 **Pre-interview verification (Entry 018)**
 - Live API (real key): `check.py --api` PASS; `llm.ask`, prompt caching (2nd identical long-system call read 16,419 tokens from cache), `ask_structured` (pydantic, 1 attempt), `stream_text` all worked against `claude-sonnet-5-5`. Price table in `usage_log.PRICES` matches the official table (Sonnet 5.5 $2/$10, Opus 5.5 $4/$20, Haiku 5.5 $0.10/$0.50, cache read $0.20/$0.20/$0.01, cache write 1.25x).
 - Scaffolded `rag` project run with Streamlit and driven through Playwright MCP (it started without issue): Korean question -> `search` tool call -> grounded answer with source, per-question cost, history sidebar; a fact missing from the document was answered as "not found".
@@ -81,14 +90,20 @@
 - `uv.lock` / `.venv` do not exist; the real environment is conda `work`. `pip install` into `work` was used, so a fresh `uv sync` was not tested with the new deps (unverified).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- Everything up to Entry 017 is pushed to `origin/claude/wizardly-gates-yc1p6c` (verified with `git fetch`; an earlier note saying 013-017 were unpushed was stale). Entry 018 commits are local only; push needs the user to write "클리어 푸시" (`git push` was removed from the allow list, so a permission prompt also appears).
-- Latest harness (Entry 018): kit `check.py --api` 6 PASS / 0 WARN / 0 FAIL, pytest 43 passed, ruff clean. Fresh clone: `uv sync` OK (base: 40 passed + 3 skipped without kiwipiepy; `--extra extras`: 43 passed).
-- Still not verified: the slash-skills `/new-project`, `/eval`, `/edge-cases`, `/share-out` were not invoked as skills (their underlying scripts were run directly); `/share-out` never publishes in tests; a full 120-minute human run-through has not been done; hybrid embedding search, PDF loading and retrieval hit-rate eval are not built; Haiku >100K-token price tier is not modeled in `usage_log.PRICES`.
+- Origin has everything up to Entry 018. Entry 019 is committed locally only; push needs the user to write "클리어 푸시" (`git push` is not in the allow list, so a permission prompt also appears).
+- Latest harness (Entry 019): kit `check.py` 5 PASS / 0 WARN / 0 FAIL, ruff clean, pytest ~70 passed. Fresh-clone reproduction was last verified in Entry 018 (before kiwipiepy/pypdf became core dependencies and `uv.lock` was regenerated) - re-verify before relying on it.
+- Still not verified: `/share-out` was invoked but only through the pre-publish safety check (nothing was published to Notion/Drive/Canva); a full 120-minute human run-through has not been done; the Haiku >100K-token price tier is not modeled in `usage_log.PRICES`; PDF loading was tested with generated English PDFs only (no real Korean PDF, no scanned/OCR PDF); the coverage-gate threshold was tuned on a 21-query toy corpus and may be overfit.
 - Server-side refusal `fallbacks` (beta) are not enabled; refusals are surfaced as mock fallback instead.
 - Session operation (discussed, nothing built): one writer session per project folder; extra sessions only read (summary) or publish finished, committed artifacts (`/share-out`). Offered but not built: read-only `scripts/status.py` and `docs/sessions.md`. Whether the interview rules allow multiple sessions is unknown.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
 ## Log (newest first)
+
+### Entry 019 — 2026-10-14 — Push, kiwipiepy default, project-local .env, retrieval stack, skill runs
+- User asked for: push, enable kiwipiepy, invoke the slash skills, move `.env` inside the project, and implement the open items. Pushed Entries up to 018 first.
+- Implemented PDF loading, hybrid search, retrieval hit-rate eval, env loader, coverage gate, input guard (details in Current State). Mutation checks on `embedsearch`/`docloader` each failed a test, then were reverted.
+- Mistakes caught: template strings written through the shell lost backslashes twice (a broken `RETRIEVAL_TEMPLATE`; a `"\n\t"` literal that expanded to real newlines in generated tests) - fixed with file-based edits and verified in the generated output; an old test asserting "scaffold never has .env" was updated to the new intended behavior; `st.cache_resource` parameter named `_signature` would have been excluded from the cache key (renamed).
+- Open: push (needs "클리어 푸시"); real Korean/scanned PDFs; coverage threshold re-check on a real corpus; embedding model download size (~470 MB) is cached on this PC only; 120-minute human rehearsal.
 
 ### Entry 018 — 2026-10-14 — Pre-interview verification pass
 - User asked to proceed with the recommended order (live API, rehearsal run, fresh-environment reproduction, config cleanup).

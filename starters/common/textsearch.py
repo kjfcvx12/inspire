@@ -12,6 +12,12 @@ from collections import Counter
 
 _CONTENT_TAGS = ("NN", "NR", "NP", "VV", "VA", "XR", "SL", "SN", "SH")  # 체언·용언 어간·어근·외국어·숫자·한자
 _STOP = {"하", "되", "있", "않", "이", "그", "수", "것", "어떻"}  # 의미 없는 용언 어간
+# 실측(데모 코퍼스 8문서, 양성 17·근거없음 4 질의, scripts 아래 eval 케이스 기준):
+#  형태소 모드: 0~0.1 오탐 2/4 · 0.2~0.3 적중률 82% 유지·오탐 0/4 · 0.4부터 하락 → 0.25
+#  bigram 모드(kiwipiepy 없음): 조사 변형 bigram이 많아 0.2부터 적중률이 53%로 급락 → 0.1(적중률 82%, 오탐 1/4)
+# 표본이 작고 결함을 발견한 질의로 정한 값이라 과적합 가능성이 있다. 새 코퍼스에서 eval_retrieval.py로 다시 확인할 것.
+MIN_COVERAGE_MORPH = 0.25
+MIN_COVERAGE_BIGRAM = 0.1
 _kiwi = None
 _kiwi_tried = False
 
@@ -56,12 +62,23 @@ class Index:
         n = len(self.docs)
         self.idf = {t: math.log(1 + (n - f + 0.5) / (f + 0.5)) for t, f in df.items()}
 
-    def search(self, query: str, k: int = 3) -> list[tuple[int, float]]:
+    def search(self, query: str, k: int = 3, min_coverage: float = None) -> list[tuple[int, float]]:
+        """min_coverage: 질의어(idf 가중) 중 문서가 맞힌 비율의 하한. '신청' 같은 흔한 단어 하나만 겹쳐
+        엉뚱한 문서가 올라오는 것을 막는다. 코퍼스에 없는 질의어는 가장 희귀한 단어 취급(= 못 맞힌 것으로 센다)."""
+        if min_coverage is None:
+            min_coverage = MIN_COVERAGE_MORPH if _get_kiwi() is not None else MIN_COVERAGE_BIGRAM
+        mc = min_coverage
         q = set(tokenize(query))
+        if not q:
+            return []
+        top_idf = max(self.idf.values(), default=1.0)
+        weight = {t: self.idf.get(t, top_idf) for t in q}
+        total = sum(weight.values())
         scored = []
         for i, d in enumerate(self.docs):
             norm = self.k1 * (1 - self.b + self.b * self.lens[i] / self.avg) if self.avg else self.k1
             s = sum(self.idf[t] * d[t] * (self.k1 + 1) / (d[t] + norm) for t in q if t in d)
-            if s > 0:
+            covered = sum(weight[t] for t in q if t in d)
+            if s > 0 and covered / total >= mc:
                 scored.append((i, s))
         return sorted(scored, key=lambda x: -x[1])[:k]

@@ -174,6 +174,21 @@ def test_ask_falls_back_to_mock_when_api_is_down(monkeypatch, tmp_path):
     assert load_app().ask("질문").startswith("(mock)")
 
 
+@pytest.mark.parametrize("text", ["", "   ", "\\n\\t"])
+def test_ask_rejects_blank_question_without_calling_api(monkeypatch, text):
+    def boom(*a, **k):
+        raise AssertionError("빈 질문으로 API를 호출하면 안 된다")
+    monkeypatch.setattr(llm, "create", boom)
+    assert "질문을 입력" in load_app().ask(text)
+
+
+def test_ask_rejects_overlong_question_without_calling_api(monkeypatch):
+    def boom(*a, **k):
+        raise AssertionError("너무 긴 질문으로 API를 호출하면 안 된다")
+    monkeypatch.setattr(llm, "create", boom)
+    assert "너무 깁니다" in load_app().ask("한" * 5000)
+
+
 def test_golden_set_passes():
     cases = evalkit.load_golden(ROOT / "eval" / "golden.jsonl")
     assert cases, "eval/golden.jsonl에 케이스가 없습니다"
