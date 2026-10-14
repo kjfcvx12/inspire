@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 023, 2026-10-14)
+## Current State (cumulative, as of Entry 024, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -127,9 +127,16 @@
 - Session operation (discussed, nothing built): one writer session per project folder; extra sessions only read (summary) or publish finished, committed artifacts (`/share-out`). Offered but not built: read-only `scripts/status.py` and `docs/sessions.md`. Whether the interview rules allow multiple sessions is unknown.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
-- Entry 023 open: Docker engine start and `hello-world` unverified (rebooting); Docker Desktop autostart and memory use during the interview should be turned off if unused; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are still not done; default fallback text exposes raw error text.
+- Entry 024: Docker engine did NOT start before the reboot (`docker desktop status` stopped; `docker desktop restart` failed with 'context deadline exceeded'; no explicit error in `com.docker.backend.exe.log`, only repeated 'backend is not running'; no VM process; license terms already accepted). Likely cause is the pending reboot after the WSL install (inference, not confirmed by the log); re-check after the reboot with `docker run --rm hello-world`; if it still fails, try the Hyper-V backend.
+- Entry 023 open: Docker engine start and `hello-world` unverified; Docker Desktop autostart and memory use during the interview should be turned off if unused; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are still not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 024 — 2026-10-14 — Docker engine check (before reboot)
+- User asked to check the Docker engine; then said the reboot had not happened yet, then "클리어".
+- Findings: Docker Desktop 4.95.0 process running, engine stopped; `docker info` returned 500 (then hung); `docker desktop start` reported "already running"; `docker desktop restart --timeout 150` failed. Backend log: license terms already accepted (no dialog pending), no explicit failure, only repeated "cannot toggle VM OTel collector, backend is not running" for 13+ minutes. WSL 3.0.3 / kernel 6.18.54.1 installed; no `vmmemWSL` process.
+- No repository change this entry. A background wait started earlier ended with the same result (engine not up); its completion notice is not user input.
+- Open: after reboot, `docker run --rm hello-world`; Hyper-V backend as fallback; Dockerfile template only if wanted; rehearsals.
 
 ### Entry 023 — 2026-10-14 — Start-flow dry run, mock-label fix, Docker Desktop install
 - User asked what to add/improve before the test; I listed priorities (human rehearsal, start flow, blank scaffold, mock fallback visibility) and the user said to proceed. Then asked whether to install Docker (advised against; user chose to install anyway), where to put WSL (no location option for `--no-distribution`), and said "클리어".
