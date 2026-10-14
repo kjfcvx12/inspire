@@ -24,7 +24,23 @@
       "mcp__playwright"
     ],
     "deny": [
-      "Read(.env)"
+      "Read(.env)",
+      "Read(**/.env)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$CLAUDE_PROJECT_DIR/.claude/hooks/block_env_read.py\"",
+            "shell": "bash",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "enabledMcpjsonServers": ["playwright", "context7"]
