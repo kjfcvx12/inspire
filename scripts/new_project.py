@@ -7,6 +7,7 @@ import shutil
 import sys
 from importlib import metadata
 from pathlib import Path
+from typing import Optional
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,16 +17,16 @@ RUN = {
     "predict": "python train.py data/<파일>.csv <타깃열>",
     "blank": "streamlit run app.py",
 }
-SCRIPTS = ("check.py", "cost_report.py", "start.py", "eval.py")
+SCRIPTS = ("check.py", "cost_report.py", "start.py", "eval.py", "eval_retrieval.py")
 
 BASE_REQS = ["anthropic", "python-dotenv", "pydantic", "pytest", "ruff", "tenacity"]
 TYPE_REQS = {
-    "rag": ["streamlit", "scikit-learn", "pandas"],
+    "rag": ["streamlit", "scikit-learn", "pandas", "kiwipiepy", "pypdf"],  # 형태소 검색, PDF 로딩
     "predict": ["scikit-learn", "pandas", "openpyxl"],
     "blank": ["streamlit", "pandas"],
 }
 OPTIONAL_REQS = {  # 주석으로만 남긴다. 필요할 때 풀어서 쓴다
-    "rag": ["rank-bm25", "kiwipiepy", "plotly"],
+    "rag": ["sentence-transformers", "plotly"],  # sentence-transformers: SEARCH_MODE=hybrid(임베딩) 때 필요
     "predict": ["lightgbm", "shap", "plotly"],
     "blank": ["plotly", "rank-bm25", "lightgbm", "kiwipiepy"],
 }
@@ -36,6 +37,14 @@ import streamlit as st
 
 st.title("TODO: 제목")
 '''
+
+RETRIEVAL_TEMPLATE = (
+    "# 검색 적중률 케이스: 한 줄 = 한 케이스(JSONL). 규칙은 common/retrieval_eval.py 상단 설명 참고.\n"
+    "# 실행: python scripts/eval_retrieval.py eval/retrieval.jsonl --docs data\n"
+    "# 아래 샘플은 data/sample.md 용이다. 실제 문서로 바꾸면 실제 질문·근거 파일로 교체한다.\n"
+    '{"q": "샘플 문서에는 무엇이 있나요?", "expect_source": "sample.md"}\n'
+    '{"q": "화성 이주 정책", "expect_none": true}\n'
+)
 
 GOLDEN = {
     "rag": (
@@ -65,11 +74,12 @@ README = """# {name}
 ## 실행
 ```
 pip install -r requirements.txt     # (uv: uv pip install -r requirements.txt)
-cp .env.example .env                # ANTHROPIC_API_KEY 입력. 키가 없으면 mock 폴백으로 동작
+                                    # .env는 생성 시 키트의 것이 복사돼 이미 있다(없으면 .env.example 복사)
 {run}
 python scripts/check.py             # 컴파일 + ruff + pytest + 환경 검사 (--api: API 실호출)
 python scripts/eval.py eval/golden.jsonl --target {main}:함수   # 골든셋 평가(발표 수치의 출처)
 python scripts/cost_report.py       # 실제 API 비용 리포트(logs/usage.jsonl 기준)
+python scripts/eval_retrieval.py eval/retrieval.jsonl   # (rag) 검색 적중률 hit@k·MRR, bm25 vs hybrid 비교
 ```
 
 ## 구조
@@ -81,12 +91,17 @@ python scripts/cost_report.py       # 실제 API 비용 리포트(logs/usage.jso
 - `common/usage_log.py` — 호출별 토큰·비용 기록(`logs/usage.jsonl`)
 - `common/ui.py` — Streamlit 출력용 `md_safe()` (답변의 `~`·`$`가 취소선·수식으로 깨지는 것을 막는다)
 - `common/textsearch.py` — 한국어 키워드 검색(형태소+BM25, kiwipiepy 없으면 bigram 폴백). `Index(chunks).search(q, k)`
-- `scripts/` — `check.py`(하네스), `eval.py`, `cost_report.py`, `start.py`(시작 시각 기록)
+- `common/docloader.py` — `.txt .md .pdf` → 청크(겹침, PDF는 `경로#p페이지`). 못 읽은 파일은 사유와 함께 `skipped`
+- `common/embedsearch.py` — 하이브리드 검색(BM25+임베딩, RRF). `SEARCH_MODE=hybrid`로 켠다. 모델을 못 올리면 BM25로 폴백
+- `common/retrieval_eval.py`, `eval/retrieval.jsonl` — 검색 적중률(hit@k·MRR)·"근거 없음" 오탐 평가
+- `common/envload.py` — 이 폴더의 `.env`만 읽는다(상위 폴더를 탐색하지 않음)
+- `scripts/` — `check.py`(하네스), `eval.py`, `eval_retrieval.py`, `cost_report.py`, `start.py`(시작 시각 기록)
 - `tests/` — 스모크·엣지·골든 테스트부터 시작해 핵심 기능 테스트를 추가한다
 - `docs/decisions.md` — 결정 로그(시각 · 결정 · 이유)
 
 ## 메모
-- `.env`는 이 폴더에 두거나, 레포 안에 있으면 상위 폴더의 `.env`를 자동으로 찾는다. 폴더를 옮겼다면 새로 만든다.
+- `.env`는 이 폴더 안의 것만 읽는다. 생성 시 키트의 `.env`가 복사됐다(키 값은 출력 안 함). 폴더째 옮겨도 따라간다.
+- `.env`는 `.gitignore`에 있어 커밋되지 않는다. 폴더를 압축·공유할 때는 `.env`를 빼고 보낸다.
 - 커밋 금지: `.env`, `logs/`, `.venv/`, `*.db` (`.gitignore`에 포함됨).
 """
 
@@ -221,7 +236,7 @@ def write(path: Path, text: str):
         f.write(text)
 
 
-def create(name: str, kind: str, dest: Path) -> Path:
+def create(name: str, kind: str, dest: Path, env_src: Optional[Path] = None, copy_env: bool = True) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
         raise SystemExit(f"이름은 영문/숫자/_/- 만 가능합니다: {name!r}")
     proj = dest / name
@@ -244,6 +259,9 @@ def create(name: str, kind: str, dest: Path) -> Path:
     else:
         write(proj / "data" / ".gitkeep", "")
     shutil.copy2(ROOT / ".env.example", proj / ".env.example")
+    src = env_src if env_src is not None else ROOT / ".env"
+    if copy_env and src.is_file():  # 내용을 읽거나 출력하지 않고 파일째 복사한다
+        shutil.copy2(src, proj / ".env")
     write(proj / "README.md", README.format(name=name, kind=kind, run=RUN[kind], main=main))
     write(proj / "requirements.txt", requirements(kind))
     write(proj / ".gitignore", GITIGNORE)
@@ -251,6 +269,8 @@ def create(name: str, kind: str, dest: Path) -> Path:
     write(proj / "pytest.ini", PYTEST)
     write(proj / "docs" / "decisions.md", DECISIONS)
     write(proj / "eval" / "golden.jsonl", GOLDEN[kind])
+    if kind == "rag":
+        write(proj / "eval" / "retrieval.jsonl", RETRIEVAL_TEMPLATE)
     write(proj / "tests" / "test_smoke.py", TEST_HEAD.format(imports=TEST_IMPORTS[kind]) + TEST_TAIL[kind])
     return proj
 
@@ -260,7 +280,10 @@ if __name__ == "__main__":
     ap.add_argument("name")
     ap.add_argument("--type", choices=["rag", "predict", "blank"], default="blank", dest="kind")
     ap.add_argument("--dest", default=str(ROOT / "projects"))
+    ap.add_argument("--no-env", action="store_true", help="키트의 .env를 복사하지 않는다")
     a = ap.parse_args()
-    p = create(a.name, a.kind, Path(a.dest))
+    p = create(a.name, a.kind, Path(a.dest), copy_env=not a.no_env)
     print(f"생성: {p}")
+    has_env = (p / ".env").is_file()
+    print(".env: " + ("복사됨(키 값은 출력하지 않음)" if has_env else "없음 — .env.example을 복사해 키를 넣으세요"))
     print(f"다음: python {p / 'scripts' / 'check.py'}   (이후 작업은 이 폴더 안에서만)")

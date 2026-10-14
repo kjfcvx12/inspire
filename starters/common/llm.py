@@ -14,7 +14,7 @@ from typing import Callable, Iterator, Optional, Union
 import anthropic
 from tenacity import Retrying, retry_if_exception, stop_after_attempt, wait_exponential_jitter
 
-from . import usage_log
+from . import envload, usage_log
 
 MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5")
 MAX_ATTEMPTS = 3   # 최초 1회 + 재시도 2회
@@ -49,11 +49,7 @@ def get_client():
     """재시도는 이 모듈이 맡으므로 SDK 자체 재시도는 끈다(이중 재시도 방지)."""
     global _client
     if _client is None:
-        try:
-            from dotenv import load_dotenv
-            load_dotenv()
-        except ImportError:
-            pass
+        envload.load_env()  # 프로젝트 루트의 .env만 읽는다(상위 폴더 탐색 안 함)
         _client = anthropic.Anthropic(max_retries=0)
     return _client
 

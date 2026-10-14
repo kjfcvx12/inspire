@@ -60,7 +60,7 @@ def check_tests():
 def check_env():
     try:
         from dotenv import load_dotenv
-        load_dotenv()
+        load_dotenv(ROOT / ".env")  # 이 폴더의 .env만(상위 폴더 탐색 안 함)
     except ImportError:
         pass
     has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))

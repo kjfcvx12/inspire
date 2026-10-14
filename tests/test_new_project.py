@@ -41,7 +41,60 @@ def test_refuses_to_overwrite_and_bad_names(tmp_path):
         new_project.create("../evil", "blank", tmp_path)
 
 
-def test_scaffold_has_no_secrets(tmp_path):
-    proj = new_project.create("demo", "rag", tmp_path)
+def test_scaffold_has_no_secrets_unless_env_is_copied(tmp_path):
+    proj = new_project.create("demo", "rag", tmp_path, copy_env=False)
     assert not (proj / ".env").exists()
     assert "ANTHROPIC_API_KEY=" in (proj / ".env.example").read_text(encoding="utf-8")
+
+
+def test_copied_env_value_appears_nowhere_else_and_is_gitignored(tmp_path):
+    secret = "sk-test-DO-NOT-LEAK-123456"
+    src = tmp_path / "kit.env"
+    src.write_text(f"ANTHROPIC_API_KEY={secret}\n", encoding="utf-8")
+    proj = new_project.create("demo", "rag", tmp_path, env_src=src)
+    leaks = [p for p in proj.rglob("*") if p.is_file() and p.name != ".env"
+             and secret.encode() in p.read_bytes()]
+    assert leaks == []
+    assert ".env" in (proj / ".gitignore").read_text(encoding="utf-8").splitlines()
+
+
+def test_env_is_copied_into_project_and_read_only_from_there(tmp_path):
+    src = tmp_path / "kit.env"
+    src.write_text("SCAFFOLD_ENV_PROBE=from-project\n", encoding="utf-8")
+    proj = new_project.create("demo", "blank", tmp_path, env_src=src)
+    assert (proj / ".env").read_bytes() == src.read_bytes()
+    code = ("import sys, os; sys.path.insert(0, '.'); from common import envload; "
+            "print(envload.load_env(), os.environ.get('SCAFFOLD_ENV_PROBE'))")
+    r = run(["-c", code], proj)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.split() == ["True", "from-project"]
+
+
+def test_env_not_copied_when_missing_or_disabled(tmp_path):
+    src = tmp_path / "kit.env"
+    src.write_text("K=v\n", encoding="utf-8")
+    assert not (new_project.create("a", "blank", tmp_path, env_src=src, copy_env=False) / ".env").exists()
+    assert not (new_project.create("b", "blank", tmp_path, env_src=tmp_path / "nope.env") / ".env").exists()
+
+
+def test_project_does_not_pick_up_parent_env(tmp_path):
+    """폴더가 다른 프로젝트 안에 중첩돼도 상위 폴더의 .env를 집어 오지 않는다(키 혼선 방지)."""
+    (tmp_path / ".env").write_text("SCAFFOLD_ENV_PROBE=parent\n", encoding="utf-8")
+    proj = new_project.create("demo", "blank", tmp_path, env_src=tmp_path / "nope.env")
+    code = ("import sys, os; sys.path.insert(0, '.'); from common import envload; "
+            "print(envload.load_env(), os.environ.get('SCAFFOLD_ENV_PROBE'))")
+    env = {k: v for k, v in __import__("os").environ.items() if k != "SCAFFOLD_ENV_PROBE"}
+    r = subprocess.run([sys.executable, "-c", code], cwd=proj, capture_output=True, text=True, env=env)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.split() == ["False", "None"]
+
+
+def test_rag_scaffold_has_retrieval_eval_and_kiwipiepy_pypdf_requirements(tmp_path):
+    proj = new_project.create("demo", "rag", tmp_path, copy_env=False)
+    reqs = (proj / "requirements.txt").read_text(encoding="utf-8").splitlines()
+    active = [ln.split(">=")[0] for ln in reqs if ln and not ln.startswith("#")]
+    assert "kiwipiepy" in active and "pypdf" in active
+    assert (proj / "eval" / "retrieval.jsonl").is_file() and (proj / "scripts" / "eval_retrieval.py").is_file()
+    r = run(["scripts/eval_retrieval.py", "eval/retrieval.jsonl", "--mode", "bm25", "--min-hit", "1.0"], proj)
+    assert r.returncode == 0, r.stdout[-600:] + r.stderr[-300:]
+    assert "hit@k" in r.stdout and (proj / "logs" / "eval_retrieval.json").is_file()

@@ -1,22 +1,22 @@
 """RAG + tool-calling Agent 스타터 (Streamlit). data/ 폴더의 .txt/.md를 검색 소스로 사용.
 호출은 common.llm(재시도·mock 폴백·캐싱·비용 기록), 질문 기록은 common.db(SQLite)를 쓴다."""
-import glob
 import os
 import sys
 from pathlib import Path
 
 import streamlit as st
-from dotenv import load_dotenv
 
 HERE = Path(__file__).resolve().parent
 sys.path[:0] = [str(HERE), str(HERE.parent)]  # starters/ 안에서도, projects/<이름>/ 단독으로도 common을 찾는다
 from common import llm  # noqa: E402
 from common.db import Store  # noqa: E402
-from common.textsearch import Index  # noqa: E402  한국어 형태소 + BM25 (공백 TF-IDF는 '환불은'≠'환불')
+from common.docloader import load_chunks  # noqa: E402  문서 로더(txt·md·pdf를 청크로)
+from common.embedsearch import build_index  # noqa: E402  검색 색인(기본 키워드, SEARCH_MODE=hybrid면 임베딩 결합)
+from common.envload import load_env  # noqa: E402  이 폴더의 .env만 읽는다
 from common.ui import md_safe  # noqa: E402  '3~5일'·'$' 가 취소선·수식으로 깨지지 않게
 from common.usage_log import summary  # noqa: E402  호출별 토큰·비용 기록(logs/usage.jsonl)
 
-load_dotenv()
+load_env()
 MODEL = llm.MODEL
 DOCS_DIR = os.environ.get("DOCS_DIR", "data")
 MAX_STEPS = 5
@@ -24,17 +24,18 @@ SYSTEM = ("당신은 제공된 문서 검색 결과만 근거로 답하는 도�
           "답변 끝에 근거로 쓴 출처 파일 경로를 적습니다.")
 
 
-def load_chunks(size=500):
-    chunks = []
-    for p in glob.glob(f"{DOCS_DIR}/**/*.*", recursive=True):
-        if p.endswith((".txt", ".md")):
-            t = open(p, encoding="utf-8").read()
-            chunks += [(p, t[i:i + size]) for i in range(0, len(t), size)]
-    return chunks
+def _docs_signature(docs_dir):
+    """문서가 바뀌면 색인을 다시 만들도록 (경로, 수정시각) 목록을 캐시 키로 쓴다."""
+    return tuple((str(p), p.stat().st_mtime_ns) for p in sorted(Path(docs_dir).rglob("*")) if p.is_file())
 
 
-CHUNKS = load_chunks()
-INDEX = Index(CHUNKS) if CHUNKS else None
+@st.cache_resource(show_spinner="문서 색인 중…")  # 입력마다 스크립트가 다시 도므로 모델 재로딩을 막는다
+def _build(docs_dir, mode, signature):  # signature는 캐시 키 전용(앞에 _를 붙이면 키에서 빠진다)
+    chunks, skipped = load_chunks(docs_dir)  # skipped: 읽지 못한 파일과 사유
+    return chunks, skipped, (build_index(chunks, mode) if chunks else None)
+
+
+CHUNKS, SKIPPED, INDEX = _build(DOCS_DIR, os.environ.get("SEARCH_MODE", "bm25"), _docs_signature(DOCS_DIR))
 
 
 def search(query: str, k: int = 3) -> str:
@@ -83,6 +84,11 @@ if st.session_state.get("last_q") == q and q:
     st.write(md_safe(st.session_state.get("last_a")))
     st.caption(md_safe(st.session_state.get("last_cost")))
 with st.sidebar:
+    st.caption(f"문서 청크 {len(CHUNKS)}개 · 검색 {INDEX.mode if INDEX else '문서 없음'}")
+    if INDEX and getattr(INDEX, "error", None):
+        st.warning(f"임베딩을 쓰지 못해 BM25로 동작 중: {md_safe(INDEX.error)}")
+    for path, why in SKIPPED:
+        st.warning(f"건너뜀: {md_safe(path)} — {md_safe(why)}")
     st.subheader("최근 질문")
     for row in store.list("qa", 10):
         st.caption(md_safe(f"{row['ts']} · {row['data']['q'][:40]}"))

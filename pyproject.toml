@@ -5,6 +5,8 @@ requires-python = ">=3.11"
 dependencies = [
     "anthropic", "scikit-learn", "pandas", "streamlit", "fastapi", "uvicorn", "python-dotenv", "pytest",
     "ruff", "openpyxl", "plotly", "tenacity",
+    # RAG 기본: kiwipiepy(한국어 형태소 검색), pypdf(PDF 로딩)
+    "kiwipiepy", "pypdf",
 ]
 
 [project.optional-dependencies]
@@ -13,7 +15,7 @@ dependencies = [
 # torch(+vision/audio): 딥러닝(Windows PyPI wheel은 CPU 빌드), transformers/sentence-transformers: 임베딩·NLP,
 # accelerate/datasets: 학습 편의·HF 데이터셋, tqdm/pillow: 진행 표시·이미지 입출력
 extras = [
-    "langfuse", "supabase", "matplotlib", "rank-bm25", "lightgbm", "shap", "kiwipiepy",
+    "langfuse", "supabase", "matplotlib", "rank-bm25", "lightgbm", "shap",
     "torch", "torchvision", "torchaudio", "transformers", "sentence-transformers",
     "accelerate", "datasets", "tqdm", "pillow",
 ]
