@@ -16,7 +16,7 @@
 - Local folder `C:\Users\강민구\Desktop\0` is a git repo connected to `https://github.com/kjfcvx12/inspire` (remote `origin`).
 - Only remote branch is `claude/wizardly-gates-yc1p6c` (also remote HEAD); checked out locally with tracking. No `main` branch.
 - Project is an "Interview Kit" for a 2-hour vibe-coding interview (stack and rules in `CLAUDE.md`; skills `/plan`, `/present`, `/demo-ready` in `.claude/skills/`; starters in `starters/predict` and `starters/rag_agent`).
-- `.vscode/`, `1.txt` (a local note) and `.playwright-mcp/` are git-ignored. `uv.lock` is committed (Entry 018). Entries 013-018 are committed locally and not pushed.
+- `.vscode/`, `1.txt` (a local note) and `.playwright-mcp/` are git-ignored. `uv.lock` is committed (Entry 018). Entries 013-017 are on origin; Entry 018 (2 commits) is committed locally and not pushed.
 
 **Python environment**
 - Conda lives at `C:\ProgramData\anaconda3` and is **not on PATH**. Activate with: `conda activate work` (in Anaconda Prompt), or call `C:\ProgramData\anaconda3\envs\work\python.exe` directly.
@@ -81,7 +81,7 @@
 - `uv.lock` / `.venv` do not exist; the real environment is conda `work`. `pip install` into `work` was used, so a fresh `uv sync` was not tested with the new deps (unverified).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- Everything up to Entry 012 is pushed to `origin/claude/wizardly-gates-yc1p6c`. Entries 013-018 are committed locally only; push needs the user to write "클리어 푸시" (`git push` was removed from the allow list in Entry 018, so a permission prompt also appears).
+- Everything up to Entry 017 is pushed to `origin/claude/wizardly-gates-yc1p6c` (verified with `git fetch`; an earlier note saying 013-017 were unpushed was stale). Entry 018 commits are local only; push needs the user to write "클리어 푸시" (`git push` was removed from the allow list, so a permission prompt also appears).
 - Latest harness (Entry 018): kit `check.py --api` 6 PASS / 0 WARN / 0 FAIL, pytest 43 passed, ruff clean. Fresh clone: `uv sync` OK (base: 40 passed + 3 skipped without kiwipiepy; `--extra extras`: 43 passed).
 - Still not verified: the slash-skills `/new-project`, `/eval`, `/edge-cases`, `/share-out` were not invoked as skills (their underlying scripts were run directly); `/share-out` never publishes in tests; a full 120-minute human run-through has not been done; hybrid embedding search, PDF loading and retrieval hit-rate eval are not built; Haiku >100K-token price tier is not modeled in `usage_log.PRICES`.
 - Server-side refusal `fallbacks` (beta) are not enabled; refusals are surfaced as mock fallback instead.
