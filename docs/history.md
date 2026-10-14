@@ -105,7 +105,7 @@
 - `uv.lock` / `.venv` do not exist; the real environment is conda `work`. `pip install` into `work` was used, so a fresh `uv sync` was not tested with the new deps (unverified).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- Origin has everything up to Entry 020. Entry 021 is committed locally and not pushed (push needs "클리어 푸시"; `git push` is not in the allow list, so a permission prompt also appears).
+- Origin has everything up to Entry 021 (pushed with "클리어 푸시" at the end of Entry 021). `git push` is not in the allow list, so a permission prompt appears.
 - Latest harness (Entry 021): kit `check.py --api` 7 PASS / 0 WARN / 0 FAIL, ruff clean, pytest 80 passed. Fresh-clone and standalone-scaffold reproduction were last verified in Entry 019 (62 / 23 passed) and not repeated since.
 - Still not verified: a full 120-minute human run-through; the Haiku >100K-token price tier is not modeled in `usage_log.PRICES`; real third-party PDFs were limited to one government-style policy report and four Wikipedia-rendered PDFs (no multi-column journals, no table-heavy statements); synthetic scans are screen captures; real handwriting was only a Joseon-era brush letter (reported as unreadable, accuracy uncheckable) - modern handwriting accuracy is unknown; `/share-out` was exercised once end to end (Notion private draft only; Drive and Canva paths untested).
 - Server-side refusal `fallbacks` (beta) are not enabled; refusals are surfaced as mock fallback instead.
