@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 020, 2026-10-14)
+## Current State (cumulative, as of Entry 021, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -56,6 +56,14 @@
 - `tests/test_textsearch.py` (7 tests, kiwi and bigram paths, empty/symbol-only input, plain-TF-IDF baseline = 0). 39 tests total.
 - Limits: keyword-only (no synonym match; sentence-transformers hybrid not wired); only a 3-document toy corpus, so no accuracy number exists; Streamlit app not run end-to-end.
 
+**Real-world PDF/scan check and /share-out test (Entry 021)**
+- Real third-party Korean text PDFs (1 policy report, 4 Wikipedia-rendered PDFs, 2-40 pages): extraction fine, no PUA/U+FFFD/cid garbage, page self-search returns the right page; line-unwrap joins spot-checked (correct for mid-word breaks, occasional false join in caption lists). Decomposed (NFD) Hangul jamo exist in archaic-Korean quotations; added NFC normalization for file text, PDF text, OCR output and query tokenization (macOS-made files and typed queries).
+- Synthetic scan variants (skew+noise+JPEG, image rotated 90 and 180, PDF /Rotate attribute, low resolution, handwriting-like jitter): Claude OCR character error rate 0-1% on 103 characters; the handwriting-like image is a font simulation, not real handwriting.
+- Real images: a printed Korean + Meitei phrase chart (Wikimedia Commons, public domain) gave 12/13 phrases (the one miss is a spelling-form difference where the OCR matched the image); a real Joseon-era cursive Hangul letter scan (Commons, public domain) cannot be verified against ground truth. With the original prompt the model produced fluent archaic text of unknown fidelity; with the new prompt it marks illegible parts as `[판독불가]` (58 marks vs 2 readable words) and the loader reports "OCR 신뢰 낮음" instead of indexing guesses.
+- `docloader` OCR hardening: prompt asks for `[판독불가]` / `[다른 문자]` markers instead of guessing; markers are stripped before indexing; if unreadable marks exceed 25% of (marks + words) a reliability warning is added to `skipped`; OCR pages with fewer than 6 content characters (page numbers) count as missing; the OCR cache key now includes the prompt.
+- `/share-out` end-to-end test: pre-publish safety review, then one Notion private draft (`notion-create-pages`, draft mode) containing the check summary; re-fetched and rendered correctly. No secrets or personal paths in the content. Drive and Canva were not exercised. The test page remains in the user's Notion as a private draft.
+- Downloaded PDFs/images were kept outside the repo in a scratch folder and read with `python -I`; nothing from them was committed.
+
 **PDF Korean/scan handling, hackathon-style threshold check, embedding cache (Entry 020)**
 - Korean PDFs (printed from HTML with Chrome, Malgun Gothic): text and table rows extract correctly. Defects found and fixed in `docloader`: (1) PDF line wraps split Korean words ("라스\n트") -> `unwrap_korean_lines` joins only after long lines whose edge characters are Hangul (headings/short lines untouched); (2) a mixed PDF silently lost its scanned pages -> reported per page in `skipped` ("텍스트 없는 쪽 누락(스캔 쪽): p2"); corrupt/encrypted PDFs get readable reasons.
 - Scanned PDFs have no text layer; no Tesseract on this PC. Added opt-in `PDF_OCR=claude`: only text-less pages are sent (whole PDF as a document block, max 20 pages / 20 MB), result cached in `logs/ocr_cache/<sha1>.txt`, failures reported in `skipped` and never block other files. Live check on a scanned and a mixed PDF: both became searchable (2 calls, ~$0.02). Unit tests use fake LLM objects (`tests/test_pdf_korean.py`, 9 tests).
@@ -97,14 +105,21 @@
 - `uv.lock` / `.venv` do not exist; the real environment is conda `work`. `pip install` into `work` was used, so a fresh `uv sync` was not tested with the new deps (unverified).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- Origin has everything up to Entry 020 ("클리어 푸시" at the end of Entry 020). `git push` is not in the allow list, so a permission prompt appears.
-- Latest harness (Entry 020): kit `check.py` 6 PASS / 0 WARN / 0 FAIL (new `embedding cache` check), ruff clean, pytest 71 passed. Fresh-clone and standalone-scaffold reproduction were last verified in Entry 019 (62 / 23 passed) and not repeated after the Entry 020 changes.
-- Still not verified: `/share-out` was invoked only through the pre-publish safety check (nothing was published to Notion/Drive/Canva); a full 120-minute human run-through has not been done; the Haiku >100K-token price tier is not modeled in `usage_log.PRICES`; PDF checks used Chrome-printed Korean PDFs and a screenshot-based scan, not third-party real-world PDFs (multi-column journals, rotated scans, handwriting); OCR output quality was only eyeballed on one small page; the embedding model is cached on this PC only (~470 MB, downloaded once).
+- Origin has everything up to Entry 020. Entry 021 is committed locally and not pushed (push needs "클리어 푸시"; `git push` is not in the allow list, so a permission prompt also appears).
+- Latest harness (Entry 021): kit `check.py --api` 7 PASS / 0 WARN / 0 FAIL, ruff clean, pytest 80 passed. Fresh-clone and standalone-scaffold reproduction were last verified in Entry 019 (62 / 23 passed) and not repeated since.
+- Still not verified: a full 120-minute human run-through; the Haiku >100K-token price tier is not modeled in `usage_log.PRICES`; real third-party PDFs were limited to one government-style policy report and four Wikipedia-rendered PDFs (no multi-column journals, no table-heavy statements); synthetic scans are screen captures; real handwriting was only a Joseon-era brush letter (reported as unreadable, accuracy uncheckable) - modern handwriting accuracy is unknown; `/share-out` was exercised once end to end (Notion private draft only; Drive and Canva paths untested).
 - Server-side refusal `fallbacks` (beta) are not enabled; refusals are surfaced as mock fallback instead.
 - Session operation (discussed, nothing built): one writer session per project folder; extra sessions only read (summary) or publish finished, committed artifacts (`/share-out`). Offered but not built: read-only `scripts/status.py` and `docs/sessions.md`. Whether the interview rules allow multiple sessions is unknown.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
 ## Log (newest first)
+
+### Entry 021 — 2026-10-14 — Real third-party Korean PDFs, rotated/handwritten scans, /share-out test
+- User asked to check real third-party Korean PDFs and rotated/handwritten scans, and to test `/share-out`.
+- Downloaded real PDFs/images (Wikipedia-rendered PDFs, a policy report, Commons images) into an isolated scratch folder; built rotated/skewed/noisy/handwriting-like scan variants; measured OCR error rates; added NFC normalization and OCR reliability handling.
+- Published one Notion private draft through `/share-out` and verified it by re-reading.
+- Mistakes caught: Commons returned HTTP 429 after rapid requests (backed off and retried once); my first handwriting-like image cut off the last line, which would have inflated error (regenerated with a shorter line); a baseline test assumed no normalization after normalization moved into the tokenizer (replaced with a stronger test); ruff E501 again flagged new Hangul-heavy lines.
+- Open: modern real handwriting accuracy; multi-column/table-heavy PDFs; Drive/Canva share paths; push.
 
 ### Entry 020 — 2026-10-14 — Korean/scanned PDF check, hackathon-style threshold test, embedding cache
 - User asked: push, check Korean PDFs and scans, test the coverage threshold on one hackathon-style topic, work with the embedding model on this PC, explain `/share-out`.

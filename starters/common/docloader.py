@@ -13,6 +13,7 @@ import base64
 import hashlib
 import os
 import re
+import unicodedata
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -20,7 +21,22 @@ TEXT_EXT = (".txt", ".md")
 PDF_EXT = (".pdf",)
 OCR_MAX_PAGES = 20            # 한 파일에서 OCR로 읽을 최대 쪽 수(비용 상한)
 OCR_MAX_BYTES = 20 * 1024 * 1024
+OCR_MIN_CHARS = 6            # OCR로 읽은 쪽이 이보다 짧으면(쪽 번호 등) 내용 없음으로 본다
+OCR_UNRELIABLE = 0.25         # [판독불가]가 (판독불가 + 읽은 단어) 중 이 비율을 넘으면 신뢰 낮음으로 알린다
+OCR_PROMPT = ("이 PDF의 모든 쪽에 보이는 글자를 있는 그대로 옮겨 적으세요. 요약·해석·번역 금지. "
+              "표는 행 단위로 한 줄씩. 각 쪽은 맨 앞에 [[PAGE 번호]] 한 줄을 쓰고 시작하세요. "
+              "글자가 없는 쪽은 [[PAGE 번호]]만 쓰세요. "
+              "읽을 수 없거나 확신이 없는 글자·단어는 절대 추측해서 채우지 말고 그 자리에 [판독불가]라고 쓰세요. "
+              "한글·한자·숫자·영문이 아닌 다른 문자(다른 나라 문자 등)는 옮기지 말고 [다른 문자]로 표시하세요.")
+_UNREADABLE = re.compile(r"\[[^\]\n]*판독\s*불가[^\]\n]*\]")
+_FOREIGN = re.compile(r"\[[^\]\n]*문자[^\]\n]*\]")
 _HANGUL = re.compile(r"[가-힣]")
+
+
+def nfc(text: str) -> str:
+    """분리형(NFD) 한글 자모를 조합형 음절로 합친다. macOS에서 만든 파일이나 일부 PDF가 NFD라서
+    그대로 두면 형태소 분석과 글자 매칭이 모두 빗나간다."""
+    return unicodedata.normalize("NFC", text)
 
 
 def split_text(text: str, size: int = 500, overlap: int = 50) -> list[str]:
@@ -50,6 +66,15 @@ def unwrap_korean_lines(text: str, ratio: float = 0.8) -> str:
     return "\n".join(out)
 
 
+def clean_ocr_text(text: str):
+    """OCR 결과에서 [판독불가]·[다른 문자] 표시를 걷어낸다(색인에 '판독 불가' 같은 단어가 섞이지 않게).
+    반환: (정리된 텍스트, 판독불가 표시 수, 남은 단어 수)."""
+    bad = len(_UNREADABLE.findall(text))
+    text = _FOREIGN.sub(" ", _UNREADABLE.sub(" ", text))
+    text = re.sub(r"[ \t]+", " ", text)
+    return text.strip(), bad, len(text.split())
+
+
 def _open_pdf(path: Path):
     try:
         from pypdf import PdfReader
@@ -69,7 +94,7 @@ def _open_pdf(path: Path):
 def _read_pdf(path: Path):
     """[(쪽 번호, 텍스트)] — 텍스트가 없는 쪽은 빈 문자열."""
     reader = _open_pdf(path)
-    return [(i + 1, unwrap_korean_lines(page.extract_text() or "")) for i, page in enumerate(reader.pages)]
+    return [(i + 1, unwrap_korean_lines(nfc(page.extract_text() or ""))) for i, page in enumerate(reader.pages)]
 
 
 def claude_ocr_pages(path: Path, pages: Optional[list] = None) -> dict:
@@ -83,16 +108,14 @@ def claude_ocr_pages(path: Path, pages: Optional[list] = None) -> dict:
     n_pages = len(_open_pdf(path).pages)
     if n_pages > OCR_MAX_PAGES:
         raise RuntimeError(f"OCR 쪽 수 상한 초과({n_pages} > {OCR_MAX_PAGES})")
-    cache = ROOT / "logs" / "ocr_cache" / (hashlib.sha1(data).hexdigest() + ".txt")
+    key = hashlib.sha1(data + OCR_PROMPT.encode("utf-8")).hexdigest()  # 프롬프트가 바뀌면 캐시도 새로
+    cache = ROOT / "logs" / "ocr_cache" / (key + ".txt")
     if cache.is_file():
         raw = cache.read_text(encoding="utf-8")
     else:
-        prompt = ("이 PDF의 모든 쪽에 보이는 글자를 있는 그대로 옮겨 적으세요. 요약·해석·번역 금지. "
-                  "표는 행 단위로 한 줄씩. 각 쪽은 맨 앞에 [[PAGE 번호]] 한 줄을 쓰고 시작하세요. "
-                  "글자가 없는 쪽은 [[PAGE 번호]]만 쓰세요.")
         content = [{"type": "document", "source": {"type": "base64", "media_type": "application/pdf",
                                                   "data": base64.standard_b64encode(data).decode()}},
-                   {"type": "text", "text": prompt}]
+                   {"type": "text", "text": OCR_PROMPT}]
         r = llm.create(messages=[{"role": "user", "content": content}], max_tokens=8192, tag="pdf_ocr")
         raw = llm.text_of(r)
         if r.stop_reason == "max_tokens":
@@ -103,7 +126,7 @@ def claude_ocr_pages(path: Path, pages: Optional[list] = None) -> dict:
     found = {int(parts[i]): parts[i + 1].strip() for i in range(1, len(parts) - 1, 2)}
     if not found:  # 마커를 못 지켰으면 전체를 첫 쪽으로 취급
         found = {1: raw.strip()}
-    return {n: t for n, t in found.items() if (pages is None or n in pages) and t}
+    return {n: nfc(t) for n, t in found.items() if (pages is None or n in pages) and t}
 
 
 def _default_ocr() -> Optional[Callable]:
@@ -124,7 +147,7 @@ def load_chunks(docs_dir: str = "data", size: int = 500, overlap: int = 50, ocr:
         rel = p.as_posix()
         try:
             if ext in TEXT_EXT:
-                text = p.read_text(encoding="utf-8")
+                text = nfc(p.read_text(encoding="utf-8"))
                 got = [(rel, c) for c in split_text(text, size, overlap)]
                 if not got:
                     skipped.append((rel, "빈 파일"))
@@ -133,12 +156,21 @@ def load_chunks(docs_dir: str = "data", size: int = 500, overlap: int = 50, ocr:
                 pages = _read_pdf(p)
                 empty = [n for n, t in pages if not t.strip()]
                 texts = {n: t for n, t in pages if t.strip()}
+                bad_total = words_total = 0
                 if empty and ocr is not None:
                     try:
-                        texts.update(ocr(p, empty))
+                        for n, t in ocr(p, empty).items():
+                            clean, bad, words = clean_ocr_text(t)
+                            bad_total += bad
+                            words_total += words
+                            if len(re.sub(r"\W", "", clean)) >= OCR_MIN_CHARS:  # 쪽 번호뿐인 쪽은 제외
+                                texts[n] = clean
                         empty = [n for n in empty if n not in texts]
                     except Exception as e:  # OCR 실패는 문서 전체를 막지 않는다
                         skipped.append((rel, f"OCR 실패: {type(e).__name__}: {str(e)[:80]}"))
+                    if bad_total and bad_total / (bad_total + words_total) > OCR_UNRELIABLE:
+                        skipped.append((rel, f"OCR 신뢰 낮음: 판독불가 {bad_total}곳(읽은 단어 {words_total}개). "
+                                             "읽은 글자는 색인됨"))
                 for n in sorted(texts):
                     got += [(f"{rel}#p{n}", c) for c in split_text(texts[n], size, overlap)]
                 if empty:

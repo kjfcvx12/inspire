@@ -8,6 +8,7 @@
 """
 import math
 import re
+import unicodedata
 from collections import Counter
 
 _CONTENT_TAGS = ("NN", "NR", "NP", "VV", "VA", "XR", "SL", "SN", "SH")  # 체언·용언 어간·어근·외국어·숫자·한자
@@ -47,6 +48,7 @@ def _bigrams(text: str) -> list[str]:
 
 
 def tokenize(text: str) -> list[str]:
+    text = unicodedata.normalize("NFC", text)  # 질의·문서 어느 쪽이 분리형 자모여도 같은 토큰이 되게 한다
     kiwi = _get_kiwi()
     if kiwi is None:
         return _bigrams(text)
