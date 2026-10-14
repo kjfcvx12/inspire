@@ -70,6 +70,26 @@ def check_env():
     add("FAIL" if r.stdout.strip() else "PASS", ".env not committed")
 
 
+def check_embedding_cache():
+    """임베딩 모델이 로컬 캐시에 있는지. hybrid를 쓰지 않는 환경(패키지 없음, SEARCH_MODE 미설정)은 건너뛴다."""
+    import importlib.util
+    wants = os.environ.get("SEARCH_MODE", "").lower() == "hybrid"
+    if not (wants or importlib.util.find_spec("sentence_transformers")):
+        return
+    name = os.environ.get("EMBED_MODEL", "intfloat/multilingual-e5-small")
+    try:
+        from huggingface_hub import try_to_load_from_cache
+        hit = try_to_load_from_cache(name, "config.json")
+    except Exception as e:
+        add("WARN", "embedding cache", f"확인 못 함: {type(e).__name__}")
+        return
+    if isinstance(hit, str):
+        add("PASS", "embedding cache", f"{name} (이 PC에 있음)")
+    else:
+        add("WARN" if wants else "PASS", "embedding cache",
+            f"{name} 없음 — hybrid는 첫 실행 때 내려받거나(약 470MB) BM25로 폴백")
+
+
 def check_api():
     if not os.environ.get("ANTHROPIC_API_KEY"):
         add("WARN", "api", "키 없음 — 건너뜀")
@@ -91,6 +111,7 @@ if __name__ == "__main__":
     check_lint()
     check_tests()
     check_env()
+    check_embedding_cache()
     if "--api" in sys.argv:
         check_api()
     print(f"== {levels.count('PASS')} PASS / {levels.count('WARN')} WARN / {levels.count('FAIL')} FAIL")

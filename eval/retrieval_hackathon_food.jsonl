@@ -1,0 +1,39 @@
+# 해커톤식 시나리오 "한식 안내 챗봇" 검색 평가. 코퍼스: python scripts/fetch_wiki_corpus.py data/hackathon_food (한국어 위키백과 9문서)
+# 재현: python scripts/eval_retrieval.py eval/retrieval_hackathon_food.jsonl --docs data/hackathon_food -k 3
+# split=dev는 임계값을 고르는 데, split=test는 고른 뒤 한 번만 보는 데 쓴다(질문은 문서 문장을 베끼지 않고 구어체로 썼다).
+{"split": "dev", "q": "복날에 먹는 닭 요리 알려줘", "expect_source": "삼계탕", "expect_contains": "삼복"}
+{"split": "dev", "q": "평양식 찬 국수는 어떻게 시작됐대?", "expect_source": "냉면"}
+{"split": "dev", "q": "김밥이 일본에서 왔다는 얘기가 맞아?", "expect_source": "김밥", "expect_contains": "노리마키"}
+{"split": "dev", "q": "당면으로 만드는 반찬 이름이 뭐지", "expect_source": "잡채", "expect_contains": "당면"}
+{"split": "dev", "q": "고기를 얇게 저며 양념해서 굽는 요리", "expect_source": "불고기"}
+{"split": "dev", "q": "여러 가지 나물을 섞어 비벼 먹는 밥", "expect_source": "비빔밥"}
+{"split": "dev", "q": "배추를 절여 발효시킨 반찬", "expect_source": "김치"}
+{"split": "dev", "q": "콩을 발효시켜 만든 장 종류", "expect_source": "된장"}
+{"split": "dev", "q": "가래떡에 매운 양념을 넣은 길거리 음식", "expect_source": "떡볶이"}
+{"split": "dev", "q": "제사 지낼 때 음식을 섞어 먹던 풍습", "expect_source": "비빔밥"}
+{"split": "dev", "q": "여름 보양식으로 인삼이 들어가는 음식", "expect_source": "삼계탕"}
+{"split": "dev", "q": "냉면은 가위로 자르나요", "expect_source": "냉면", "expect_contains": "가위"}
+{"split": "dev", "q": "김밥 속재료에 뭐가 들어가나요", "expect_source": "김밥", "expect_contains": "단무지"}
+{"split": "dev", "q": "잡채는 언제 처음 생겼어요", "expect_source": "잡채"}
+{"split": "dev", "q": "불고기 양념은 뭘로 만들어요", "expect_source": "불고기"}
+{"split": "dev", "q": "파스타 만드는 법", "expect_none": true}
+{"split": "dev", "q": "서울 맛집 추천해줘", "expect_none": true}
+{"split": "dev", "q": "마라탕 칼로리가 얼마야", "expect_none": true}
+{"split": "test", "q": "닭 한 마리를 통째로 고아 만드는 음식 이름", "expect_source": "삼계탕"}
+{"split": "test", "q": "메밀로 만든 면을 차가운 국물에 말아 먹는 음식", "expect_source": "냉면"}
+{"split": "test", "q": "김에 밥을 말아 한입 크기로 썬 음식의 유래", "expect_source": "김밥"}
+{"split": "test", "q": "당면은 어떻게 불려서 쓰나요", "expect_source": "잡채", "expect_contains": "불려"}
+{"split": "test", "q": "소고기 어느 부위가 불고기에 어울려요", "expect_source": "불고기", "expect_contains": "등심"}
+{"split": "test", "q": "골동반이 뭐야", "expect_source": "비빔밥"}
+{"split": "test", "q": "김치 종류에는 뭐가 있어", "expect_source": "김치"}
+{"split": "test", "q": "된장은 어떻게 만들어", "expect_source": "된장"}
+{"split": "test", "q": "떡볶이는 언제부터 먹었어요", "expect_source": "떡볶이"}
+{"split": "test", "q": "삼계탕에 넣는 재료가 뭐예요", "expect_source": "삼계탕", "expect_contains": "대추"}
+{"split": "test", "q": "비빔냉면이랑 물냉면은 뭐가 달라", "expect_source": "냉면", "expect_contains": "물냉면"}
+{"split": "test", "q": "잡채밥은 어떤 음식이야", "expect_source": "잡채", "expect_contains": "잡채밥"}
+{"split": "test", "q": "소풍 때 김밥을 많이 싸 가는 이유", "expect_source": "김밥"}
+{"split": "test", "q": "고추장 불고기와 간장 불고기의 차이", "expect_source": "불고기", "expect_contains": "고추장"}
+{"split": "test", "q": "김장은 언제 하나요", "expect_source": "김치"}
+{"split": "test", "q": "피자 도우 반죽 비율", "expect_none": true}
+{"split": "test", "q": "월드컵 역대 우승국이 어디야", "expect_none": true}
+{"split": "test", "q": "비트코인 시세 알려줘", "expect_none": true}

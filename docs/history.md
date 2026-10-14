@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 019, 2026-10-14)
+## Current State (cumulative, as of Entry 020, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -56,6 +56,13 @@
 - `tests/test_textsearch.py` (7 tests, kiwi and bigram paths, empty/symbol-only input, plain-TF-IDF baseline = 0). 39 tests total.
 - Limits: keyword-only (no synonym match; sentence-transformers hybrid not wired); only a 3-document toy corpus, so no accuracy number exists; Streamlit app not run end-to-end.
 
+**PDF Korean/scan handling, hackathon-style threshold check, embedding cache (Entry 020)**
+- Korean PDFs (printed from HTML with Chrome, Malgun Gothic): text and table rows extract correctly. Defects found and fixed in `docloader`: (1) PDF line wraps split Korean words ("라스\n트") -> `unwrap_korean_lines` joins only after long lines whose edge characters are Hangul (headings/short lines untouched); (2) a mixed PDF silently lost its scanned pages -> reported per page in `skipped` ("텍스트 없는 쪽 누락(스캔 쪽): p2"); corrupt/encrypted PDFs get readable reasons.
+- Scanned PDFs have no text layer; no Tesseract on this PC. Added opt-in `PDF_OCR=claude`: only text-less pages are sent (whole PDF as a document block, max 20 pages / 20 MB), result cached in `logs/ocr_cache/<sha1>.txt`, failures reported in `skipped` and never block other files. Live check on a scanned and a mixed PDF: both became searchable (2 calls, ~$0.02). Unit tests use fake LLM objects (`tests/test_pdf_korean.py`, 9 tests).
+- Hackathon-style threshold check (topic: Korean food guide chatbot; 9 Korean Wikipedia articles, 82 chunks, `scripts/fetch_wiki_corpus.py`, `eval/retrieval_hackathon_food.jsonl`, 18 dev + 18 test queries; corpus not committed, CC BY-SA). Coverage gate 0.25: test hit@3 stays 100% (no loss); stricter gates lose hits (0.3: dev 93%; 0.5: 67-80%). Retrieval-only abstention is weak and corpus dependent (0.25: dev 1/3, test 0/3; 0.3: test 3/3), BM25 itself already hit 100% on this lexically friendly question set, hybrid gave no gain here (it did on the paraphrase-heavy toy corpus). End-to-end answers (live API): 6/6 out-of-scope questions refused, 5/5 sample in-scope questions answered. Conclusion: keep defaults (0.25 morph / 0.1 bigram) as a safe minimal filter; abstention is the LLM prompt's job.
+- Embedding model: user will work on this PC, so the cached `intfloat/multilingual-e5-small` is kept. `embedsearch` now loads with `local_files_only=True` first (no network check; ~16 s cold load) and downloads only if missing; `check.py` has an `embedding cache` check (PASS when cached, WARN under `SEARCH_MODE=hybrid` when not).
+- `/share-out` was only explained to the user this turn (no publish).
+
 **Retrieval stack and project-local .env (Entry 019)**
 - Scaffold `.env`: `new_project.py` copies the kit `.env` into the project folder (file copy, value never read or printed; `--no-env` skips). Code reads only the project-root `.env` via `common/envload.py` (no upward search), so moving the folder carries the key and a nested folder cannot pick up a parent's key. Tests cover copy, no-leak into other files, and no-parent-pickup.
 - `kiwipiepy` and `pypdf` are core dependencies in `pyproject.toml` and active in the RAG scaffold `requirements.txt`; `sentence-transformers` is a commented optional line there.
@@ -90,14 +97,22 @@
 - `uv.lock` / `.venv` do not exist; the real environment is conda `work`. `pip install` into `work` was used, so a fresh `uv sync` was not tested with the new deps (unverified).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- Origin has everything up to Entry 018. Entry 019 is committed locally only; push needs the user to write "클리어 푸시" (`git push` is not in the allow list, so a permission prompt also appears).
-- Latest harness (Entry 019): kit `check.py --api` 6 PASS / 0 WARN / 0 FAIL, ruff clean, pytest 62 passed. Fresh `git clone` of the final commit + `uv sync` (kiwipiepy and pypdf now core, so no skipped tests): 62 passed. A scaffold folder installed from its own `requirements.txt` into a new venv outside the repo: 23 passed, key present via the copied `.env`.
-- Still not verified: `/share-out` was invoked but only through the pre-publish safety check (nothing was published to Notion/Drive/Canva); a full 120-minute human run-through has not been done; the Haiku >100K-token price tier is not modeled in `usage_log.PRICES`; PDF loading was tested with generated English PDFs only (no real Korean PDF, no scanned/OCR PDF); the coverage-gate threshold was tuned on a 21-query toy corpus and may be overfit.
+- Origin has everything up to Entry 020 ("클리어 푸시" at the end of Entry 020). `git push` is not in the allow list, so a permission prompt appears.
+- Latest harness (Entry 020): kit `check.py` 6 PASS / 0 WARN / 0 FAIL (new `embedding cache` check), ruff clean, pytest 71 passed. Fresh-clone and standalone-scaffold reproduction were last verified in Entry 019 (62 / 23 passed) and not repeated after the Entry 020 changes.
+- Still not verified: `/share-out` was invoked only through the pre-publish safety check (nothing was published to Notion/Drive/Canva); a full 120-minute human run-through has not been done; the Haiku >100K-token price tier is not modeled in `usage_log.PRICES`; PDF checks used Chrome-printed Korean PDFs and a screenshot-based scan, not third-party real-world PDFs (multi-column journals, rotated scans, handwriting); OCR output quality was only eyeballed on one small page; the embedding model is cached on this PC only (~470 MB, downloaded once).
 - Server-side refusal `fallbacks` (beta) are not enabled; refusals are surfaced as mock fallback instead.
 - Session operation (discussed, nothing built): one writer session per project folder; extra sessions only read (summary) or publish finished, committed artifacts (`/share-out`). Offered but not built: read-only `scripts/status.py` and `docs/sessions.md`. Whether the interview rules allow multiple sessions is unknown.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
 ## Log (newest first)
+
+### Entry 020 — 2026-10-14 — Korean/scanned PDF check, hackathon-style threshold test, embedding cache
+- User asked: push, check Korean PDFs and scans, test the coverage threshold on one hackathon-style topic, work with the embedding model on this PC, explain `/share-out`.
+- Built Chrome-printed Korean PDFs plus scanned/mixed/encrypted/truncated variants; fixed word-splitting line wraps and silent loss of scanned pages; added opt-in Claude OCR with cache and limits.
+- Ran a dev/test threshold sweep on a real Wikipedia corpus; kept the defaults and documented the weak retrieval-level abstention with the measured end-to-end answer behavior.
+- Added the embedding-cache harness check and local-first model loading.
+- Mistakes caught: ruff E501 counts wide (Hangul) characters, so new comments/docstrings broke the scaffold's "PASS ruff" test until shortened; the scanned-PDF fixture is a screenshot, so it only approximates real scans.
+- Open: real third-party Korean PDFs and rotated/handwritten scans; 120-minute human rehearsal; `/share-out` publish only on request.
 
 ### Entry 019 — 2026-10-14 — Push, kiwipiepy default, project-local .env, retrieval stack, skill runs
 - User asked for: push, enable kiwipiepy, invoke the slash skills, move `.env` inside the project, and implement the open items. Pushed Entries up to 018 first.

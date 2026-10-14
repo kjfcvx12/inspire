@@ -8,3 +8,4 @@ logs/
 .playwright-mcp/
 .vscode/
 1.txt
+data/hackathon_*/

@@ -21,7 +21,10 @@ Embedder = Callable[..., "object"]  # (texts, query=False) → (n, d) numpy 배�
 def sentence_transformer_embedder(model: Optional[str] = None) -> Embedder:
     from sentence_transformers import SentenceTransformer
     name = model or os.environ.get("EMBED_MODEL", DEFAULT_MODEL)
-    m = SentenceTransformer(name)
+    try:
+        m = SentenceTransformer(name, local_files_only=True)  # 캐시에 있으면 네트워크 없이 바로
+    except Exception:
+        m = SentenceTransformer(name)                          # 없으면 내려받는다(오프라인이면 여기서 실패 → BM25 폴백)
     e5 = "e5" in name.lower()  # E5 계열은 질의/문서 접두어가 없으면 품질이 떨어진다
 
     def embed(texts, query=False):
