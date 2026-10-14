@@ -4,7 +4,7 @@
 
 ## 1. 한눈에 보기
 - 목적: 주제 당일 공개 → 120분 구현 → 3분 발표. "계획 → 하네스 → 반복 구현 → 저장점 → 발표" 흐름을 스킬·에이전트·스크립트로 고정해 둔 키트.
-- 저장소: `https://github.com/kjfcvx12/inspire` (브랜치 `claude/wizardly-gates-yc1p6c`, `main` 없음). 변경 사항은 커밋·푸시 완료.
+- 저장소: `https://github.com/kjfcvx12/inspire` (브랜치 `claude/wizardly-gates-yc1p6c`, `main` 없음). 푸시는 사용자가 "클리어 푸시"라고 쓸 때만 하며, 2026-10-14 기준 로컬 커밋 8개가 미푸시다.
 - Claude Code 기본값: 모델 Sonnet 5.5, effort `high` (`/model`, `/effort`로 변경).
 
 ## 2. 환경
@@ -13,7 +13,8 @@
 | Python 환경 | conda `work` — Python 3.12.15 (`conda activate work`), 위치 `C:\ProgramData\anaconda3\envs\work` |
 | 프로젝트 의존성 | anthropic, scikit-learn, pandas, streamlit, fastapi, uvicorn, python-dotenv, pytest 설치됨 |
 | 추가 설치 | uv 0.13.0, langfuse, supabase, matplotlib (`pyproject.toml`의 `extras`), gh CLI(전역, 로그인 안 함) |
-| 미설치 | torch/torchvision (이미지 딥러닝 주제 대비 시 사전 설치 권장) |
+| torch | CPU 빌드가 설치됨(임베딩 검색용). 이 PC의 GPU(RTX 3050 Ti 노트북, 4GB급)는 쓰지 않는다. 학습·대량 이미지/음성 주제면 Colab 등 별도 |
+| Docker | Docker Desktop 설치·동작 확인(엔진 29.8.2). 자동 시작 없음 — 필요할 때만 수동 실행, 안 쓰면 종료. 면접 필수 아님(`new_project.py --docker` 옵션) |
 | 실행 방식 | 평문 `python`/`streamlit`/`pytest`. uv를 쓰면 앞에 `uv run` |
 | 키 | `.env.example`을 `.env`로 복사 후 `ANTHROPIC_API_KEY` 입력(필수). Langfuse·Supabase는 선택 |
 
@@ -21,21 +22,22 @@
 | 경로 | 역할 |
 |---|---|
 | `CLAUDE.md` | 면접 규칙·명령어·시간 배분·흐름 (매 세션 자동 로드) |
-| `.claude/skills/` | `plan`, `harness`, `build-loop`, `checkpoint`, `timecheck`, `present`, `demo-ready` |
+| `.claude/skills/` | `plan`, `new-project`, `harness`, `build-loop`, `checkpoint`, `timecheck`, `eval`, `edge-cases`, `present`, `demo-ready`, `share-out` |
 | `.claude/agents/` | `verifier`(독립 검증, 수정 안 함), `interviewer`(예상 질문) |
 | `.claude/settings.json` | 권한 허용 목록, `PYTHONUTF8=1`, `.env` 읽기 차단 |
 | `scripts/check.py` | 하네스: 컴파일 + pytest + 키/`.env` 커밋 검사 (`--api`로 실호출 확인) |
 | `scripts/cost_report.py` | 실제 API 비용 리포트(발표용) |
-| `scripts/start.py` | START 시각을 `decisions.md`에 기록 (인코딩 안전) |
+| `scripts/new_project.py` | 작업 폴더 `projects/<이름>/` 생성(`--type rag\|predict\|blank`, 선택 `--docker`). 이후 작업은 그 폴더 안에서만 |
+| `scripts/start.py` | START 시각을 `decisions.md`에 기록 (인코딩 안전). 작업 폴더의 것은 그 폴더의 decisions.md를 갱신 |
 | `starters/predict/`, `starters/rag_agent/` | 예측(scikit-learn), RAG/에이전트(Streamlit) 스타터 |
 | `starters/common/usage_log.py` | 호출별 토큰·비용 기록 → `logs/usage.jsonl`(gitignore) |
-| `tests/` | 스모크·비용 계산 테스트 5개 |
-| `docs/` | `decisions.md`(결정 로그), `presentation.md`(발표), `history.md`(작업 이력), 이 문서 |
+| `tests/` | 키트 pytest 114개 통과 / 1개 건너뜀(선택 docker 빌드 테스트), 2026-10-14 기준 |
+| `docs/` | `decisions.md`(결정 로그), `presentation.md`(발표), `history.md`(작업 이력), `rehearsal-report.md`, 이 문서 |
 
 ## 4. 작업 흐름 (120분)
 | 누적 분 | 단계 | 사용 |
 |---|---|---|
-| 0~10 | 분석 | `/plan` (START 시각 기록) |
+| 0~10 | 분석 | `/plan`, `/new-project`(작업 폴더 생성, START 시각 기록, check PASS 확인) |
 | 10~20 | 설계 | `/harness` (검사·골든 케이스 먼저) |
 | 20~85 | 구현 | `/build-loop` 반복, 20분마다 `/checkpoint`, 수시로 `/timecheck` |
 | 85 | **기능 동결** | 이후 버그 수정만 |
@@ -88,15 +90,28 @@
 - 못 한 것은 한계와 다음 단계로 정직하게 발표한다(대본의 모든 주장은 실행 결과로 확인된 것만).
 
 ## 6. 시험 당일 체크리스트
-1. `conda activate work` → `python scripts/check.py --api` (키·하네스 확인)
-2. `docs/decisions.md`의 START 줄을 현재 시각으로 교체
-3. `/plan <주제>` → `/harness` → 구현 시작
-4. 20분마다 `/checkpoint`, 막히면 `/timecheck`
-5. 85분 기능 동결 → `/demo-ready` → `/present` → `python scripts/cost_report.py`
+**면접 시작 전 (환경)**
+1. 전원·충전기, 인터넷(API 호출에 필요). Docker는 면접관이 요구할 때만 Docker Desktop을 수동 실행한다.
+2. `conda activate work` → `python scripts/check.py --api` → FAIL 0, 키 PASS, `embedding cache` PASS(오프라인에서도 hybrid 검색 가능).
+3. API 키 잔액과 단가표는 콘솔에서 직접 확인한다(단가표는 2026-10-06 자료, 잔액은 이 키트가 확인하지 못함).
+
+**주제 공개 후 (시간은 START 기준)**
+4. `/plan <주제>` → `/new-project <이름> --type rag|predict|blank` (START 자동 기록). 이후 모든 파일은 `projects/<이름>/` 안에서만.
+5. `/harness`로 골든 케이스를 먼저 만든다. RAG는 오프라인용 `eval/golden.jsonl`(`search`)과 API용 `eval/answers.jsonl`(`ask`)을 나눈다.
+6. `/build-loop`로 구현, 20분마다 `/checkpoint`, 막히면 `/timecheck`. 같은 증상 3회 또는 15분이면 접근을 바꾼다.
+7. 85분 기능 동결 → `/eval`(변별력 확인) → `verifier` → `/demo-ready`(7항목) → `/present` → `interviewer`.
+8. 발표 직전 `python scripts/cost_report.py`를 다시 돌려 대본의 비용·호출 수를 대조한다. 데모 실패 대비(mock 화면, 저장해 둔 샘플 출력)를 확인한다.
+
+**면접관 답에 따라**
+- 세팅 범위가 "개발 환경만": 위 1~3이면 충분하다.
+- "DB·서버 포함": 기본은 SQLite(계정·네트워크 불필요). Supabase는 `SUPABASE_URL`·`SUPABASE_KEY`와 인터넷이 필요하다. 컨테이너가 필요하면 `--docker`.
+- GPU가 필요한 주제(학습·대량 이미지/음성): 이 PC는 CPU torch이므로 사전학습 모델 + API로 범위를 잡거나 Colab을 쓴다.
 
 ## 7. 현재 미해결·주의
 - (2026-10-14 해소) 실키로 호출·캐시·구조화·스트리밍·비용 기록 검증 완료. 상세는 `docs/history.md` Entry 018-019
-- 새 스킬·에이전트는 아직 한 번도 호출해 보지 않음
+- 스킬 호출 확인: `/plan`·`/new-project`·`/timecheck`·`/eval`·`/present`·`/demo-ready`는 실제로 호출해 봄. `/harness`·`/build-loop`·`/checkpoint`·`/edge-cases`는 이번 리허설에서 스킬로 호출하지 않음(직접 단계로 대체, 이전 세션 기록은 `history.md` 참고)
+- 사람이 직접 하는 120분 전체 리허설은 안 함. 리허설의 5분 등은 AI 실행 시간이라 사람의 120분 근거가 아니다
+- 면접관에게 "미리 세팅"의 범위(환경만 vs 인프라 포함)를 아직 확인하지 못함
 - 단가표는 2026-10-06 자료 기준 — 발표 전 콘솔에서 재확인
-- 변경 사항은 커밋·푸시 완료, `.vscode/`는 untracked
-- Anthropic API는 유일한 유료 요소. Langfuse·Supabase는 무료 플랜(Supabase는 7일 미사용 시 일시중지)
+- 미푸시 로컬 커밋 8개(2026-10-14). `.vscode/`는 gitignore 대상
+- Anthropic API는 유일한 유료 요소. Langfuse·Supabase는 무료 플랜(Supabase는 7일 미사용 시 일시중지). RAG 에이전트는 질문당 약 2~3회 호출이라 호출당 평균 $0.0039(리허설 기록)

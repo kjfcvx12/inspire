@@ -174,9 +174,9 @@
 ## Log (newest first)
 
 ### Entry 030 — 2026-10-14 — Skills invoked as skills, `rag` rehearsal, clause-level chunking
-- User said "순서대로 진행" for the list (1 interviewer message draft, 2 skill calls, 3 `rag` rehearsal, 4 day-of checklist). Step 1 was a draft message only (needs the user's reply: scope of "setup"); steps 2-3 are in Current State. Step 4 (checklist) not done yet.
+- User said "순서대로 진행" for the list (1 interviewer message draft, 2 skill calls, 3 `rag` rehearsal, 4 day-of checklist). Step 1 was a draft message only (needs the user's reply: scope of "setup"); steps 2-3 are in Current State. Step 4: a checklist already existed in `docs/setup-summary.md` section 6 but was stale (no `/new-project`, "skills never invoked", "all pushed"), so that section and the file map, torch/Docker rows, test count and open items were rewritten instead of adding a new document; the checklist now has branches for the interviewer's answer (environment only / DB+server / GPU topic).
 - Mistakes caught: my own golden case marked a correct answer as a failure; answer-level cases in the offline golden file broke `check.py`; the first retrieval numbers looked good only because each file was about one chunk.
-- Open: step 4; interviewer reply on setup scope; browser check and hybrid answer-level run for the regulation bot; human 120-minute run; not pushed (7 earlier unpushed commits plus this entry's commit).
+- Open: interviewer reply on setup scope; browser check and hybrid answer-level run for the regulation bot; human 120-minute run; not pushed (7 earlier unpushed commits plus this entry's commit).
 
 ### Entry 029 — 2026-10-14 — /demo-ready on the rehearsal project
 - User said "y" to running `/demo-ready`. Ran the seven checks with real executions (details in Current State), fixed the README and two stale cost numbers, and wrote the browser-less check method into the skill.
