@@ -19,6 +19,7 @@ ROOT = _find_root()
 
 # model: (input, output, cache_read) USD per 1M tokens. 캐시 쓰기는 입력 단가의 1.25배로 가정한다.
 # Haiku의 cache_read는 입력의 0.1배로 가정한 값이다.
+# 2026-10-14 공식 가격표와 대조 완료. Haiku 5.5는 프롬프트 100K 초과 구간($0.50/$2.50)을 반영하지 않는다.
 PRICES = {
     "claude-sonnet-5-5": (2.00, 10.00, 0.20),
     "claude-opus-5-5": (4.00, 20.00, 0.20),

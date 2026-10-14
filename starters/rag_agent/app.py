@@ -13,6 +13,7 @@ sys.path[:0] = [str(HERE), str(HERE.parent)]  # starters/ 안에서도, projects
 from common import llm  # noqa: E402
 from common.db import Store  # noqa: E402
 from common.textsearch import Index  # noqa: E402  한국어 형태소 + BM25 (공백 TF-IDF는 '환불은'≠'환불')
+from common.ui import md_safe  # noqa: E402  '3~5일'·'$' 가 취소선·수식으로 깨지지 않게
 from common.usage_log import summary  # noqa: E402  호출별 토큰·비용 기록(logs/usage.jsonl)
 
 load_dotenv()
@@ -79,9 +80,9 @@ if q and q != st.session_state.get("last_q"):  # 화면이 다시 그려질 때�
                                       f"({s['calls']}회 호출, 캐시 읽기 {s['cache_read']:,} 토큰)")
     store.add("qa", {"q": q, "a": answer, "usd": round(s["usd"] - before, 6)})
 if st.session_state.get("last_q") == q and q:
-    st.write(st.session_state.get("last_a"))
-    st.caption(st.session_state.get("last_cost"))
+    st.write(md_safe(st.session_state.get("last_a")))
+    st.caption(md_safe(st.session_state.get("last_cost")))
 with st.sidebar:
     st.subheader("최근 질문")
     for row in store.list("qa", 10):
-        st.caption(f"{row['ts']} · {row['data']['q'][:40]}")
+        st.caption(md_safe(f"{row['ts']} · {row['data']['q'][:40]}"))
