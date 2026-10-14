@@ -11,3 +11,6 @@ description: 발표 직전 점검. 하네스 검사, 앱 실행, 샘플 데이�
 
 ## 검증
 점검은 실제 실행으로 한다(읽기만으로 ✅ 금지). 한 항목씩 순서대로 진행한다.
+- Streamlit 화면(2·3·6번)은 브라우저 없이 `streamlit.testing.v1.AppTest.from_file("app.py")`로 확인할 수 있다: `run()` → 입력 위젯 `set_value` → `button[0].click()` → `run()` 후 `exception`·`warning`·`dataframe`을 본다. 6번은 프로세스 환경변수 `ANTHROPIC_API_KEY`를 잘못된 값/빈 값으로 두고 실행한다(`.env`는 덮어쓰지 않는다).
+- 5번은 키 값을 출력하지 않고 "`.env` 밖 파일에 값이 들어 있는 개수"만 센다.
+- 7번의 비용·건수 문장은 `cost_report.py`를 다시 실행해 대조한다(점검 중 호출로 수치가 바뀐다). README는 스캐폴드 템플릿 그대로면 ❌로 보고 이 앱 기준으로 고친다.

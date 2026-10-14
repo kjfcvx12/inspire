@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 028, 2026-10-14)
+## Current State (cumulative, as of Entry 029, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -63,6 +63,11 @@
 - `docloader` OCR hardening: prompt asks for `[판독불가]` / `[다른 문자]` markers instead of guessing; markers are stripped before indexing; if unreadable marks exceed 25% of (marks + words) a reliability warning is added to `skipped`; OCR pages with fewer than 6 content characters (page numbers) count as missing; the OCR cache key now includes the prompt.
 - `/share-out` end-to-end test: pre-publish safety review, then one Notion private draft (`notion-create-pages`, draft mode) containing the check summary; re-fetched and rendered correctly. No secrets or personal paths in the content. Drive and Canva were not exercised. The test page remains in the user's Notion as a private draft.
 - Downloaded PDFs/images were kept outside the repo in a scratch folder and read with `python -I`; nothing from them was committed.
+
+**`/demo-ready` on the rehearsal project (Entry 029)**
+- Seven items run one by one on the scratch `meetact` project: (1) `check.py --api` 7 PASS incl. live ping; (2)-(3) fresh `AppTest` run: 0 exceptions, sample input gave 3 items and "3건" in 5.9 s; (4) README was the generic scaffold template (no app description, placeholder `--target app.py:함수`, rag-only lines) -> rewritten for this app; (5) key value found in no file other than the env file, `.gitignore` has the entry; (6) invalid key and empty key both returned `(mock)` in 0.1-0.4 s, and at screen level the page showed the warning with no exception; (7) script 597 characters without spaces = about 1.7-2.1 min at 280-360 characters/min (an assumed speaking rate, not a measured reading), cost sentences re-checked against `cost_report.py` (now 126 calls, $0.1637 -> `evidence.md` and `presentation.md` updated).
+- The third `max_tokens` row in the usage log is the `check.py --api` ping (tag `check`, 10 in / 16 out, `max_tokens=16`), confirmed; the other two stay "presumed from the verifier's fake client".
+- Skill change: `.claude/skills/demo-ready/SKILL.md` documents the browser-less `AppTest` method, the key-leak count method, the cost re-check and the README-template check. Open kit item: the `blank` scaffold README is generic (lists rag-only modules); not changed in `new_project.py`.
 
 **Presentation step, interviewer and verifier agents, mock-pass fix (Entry 028)**
 - Ran `/present` on the rehearsal project (`docs/presentation.md` 9 sections, `docs/evidence.md` with a reproduction command per number, Mermaid diagram, 3-minute script) and invoked the `interviewer` and `verifier` agents for real.
@@ -156,6 +161,11 @@
 - Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 029 — 2026-10-14 — /demo-ready on the rehearsal project
+- User said "y" to running `/demo-ready`. Ran the seven checks with real executions (details in Current State), fixed the README and two stale cost numbers, and wrote the browser-less check method into the skill.
+- Mistakes caught: the cost figures in my own presentation were already out of date after later runs (124 vs 126 calls), found only by re-running `cost_report.py` as the skill now says; I first counted the `max_tokens` rows as unexplained and then confirmed the third one from the log tag.
+- Open: the human 120-minute rehearsal; `/plan`, `/timecheck`, `/new-project` skills not invoked as skills; scratch rehearsal project not committed; not pushed.
 
 ### Entry 028 — 2026-10-14 — /present on the rehearsal project, independent agents, mock-pass fix
 - User said "y" to running the presentation step on the same topic. Invoked `/present`, `interviewer` and `verifier`; fixed the defect both found in the kit's `evalkit`; added the mutation check as a committed script in the rehearsal project (not in the kit).
