@@ -7,13 +7,12 @@ from pathlib import Path
 
 import streamlit as st
 from dotenv import load_dotenv
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
 HERE = Path(__file__).resolve().parent
 sys.path[:0] = [str(HERE), str(HERE.parent)]  # starters/ 안에서도, projects/<이름>/ 단독으로도 common을 찾는다
 from common import llm  # noqa: E402
 from common.db import Store  # noqa: E402
+from common.textsearch import Index  # noqa: E402  한국어 형태소 + BM25 (공백 TF-IDF는 '환불은'≠'환불')
 from common.usage_log import summary  # noqa: E402  호출별 토큰·비용 기록(logs/usage.jsonl)
 
 load_dotenv()
@@ -34,15 +33,16 @@ def load_chunks(size=500):
 
 
 CHUNKS = load_chunks()
-VEC = TfidfVectorizer().fit([c for _, c in CHUNKS]) if CHUNKS else None
+INDEX = Index(CHUNKS) if CHUNKS else None
 
 
 def search(query: str, k: int = 3) -> str:
-    if not VEC:
+    if not INDEX:
         return "문서 없음"
-    sims = cosine_similarity(VEC.transform([query]), VEC.transform([c for _, c in CHUNKS]))[0]
-    top = sims.argsort()[::-1][:k]
-    return "\n---\n".join(f"[{CHUNKS[i][0]}] {CHUNKS[i][1]}" for i in top)
+    hits = INDEX.search(query, k)
+    if not hits:  # 점수 0이면 억지로 채우지 않는다 → 모델이 '근거 없음'으로 답하게 한다
+        return "관련 문서 없음"
+    return "\n---\n".join(f"[{CHUNKS[i][0]}] {CHUNKS[i][1]}" for i, _ in hits)
 
 
 TOOLS = [{"name": "search", "description": "문서 검색",

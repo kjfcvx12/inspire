@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 016, 2026-10-14)
+## Current State (cumulative, as of Entry 017, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -23,7 +23,8 @@
 - Environments: `base` (Python 3.13.12) and `work` (Python 3.12.15). The old 3.10 `fastapi`/`work` env and the temporary `interview` env were deleted.
 - `work` has all `pyproject.toml` deps: anthropic 1.13.0, scikit-learn 1.9.1, pandas 3.0.6, streamlit 1.65.0, fastapi 0.143.0, uvicorn 0.54.0, python-dotenv 1.2.4, pytest 9.1.1.
 - Extras in `work`: uv 0.13.0, langfuse 4.17.0, supabase 2.32.0, matplotlib 3.11.2. `pip check` is clean.
-- Pre-installed for the interview (Entry 013): core deps `ruff` 0.17.0, `openpyxl` 3.1.5, `plotly` 7.1.0, `tenacity` 9.2.1; extras `rank-bm25` 0.2.2 (RAG), `lightgbm` 4.7.0 + `shap` 0.53.0 (prediction), `kiwipiepy` 0.24.0 (Korean tokenizing). All declared in `pyproject.toml`. Not installed on purpose: torch/sentence-transformers/chromadb/faiss (slow download), langchain (opaque).
+- Pre-installed for the interview (Entry 013): core deps `ruff` 0.17.0, `openpyxl` 3.1.5, `plotly` 7.1.0, `tenacity` 9.2.1; extras `rank-bm25` 0.2.2 (RAG), `lightgbm` 4.7.0 + `shap` 0.53.0 (prediction), `kiwipiepy` 0.24.0 (Korean tokenizing). All declared in `pyproject.toml`. Not installed on purpose: chromadb/faiss, langchain (opaque).
+- Deep-learning stack (Entry 017): installed into `work` and added to `pyproject.toml` `extras`: torch 2.14.1 (CPU build; `cuda: False`), torchvision 0.29.1, torchaudio 2.11.0, transformers 5.19.0, sentence-transformers 6.1.0, accelerate 1.15.0, datasets 5.1.0, tqdm, pillow. `uv pip check` clean; torch ≈ 474 MB in site-packages, uv cache ≈ 596 MB. Suggested but not installed: faiss-cpu, pypdf, optuna, xgboost, duckdb, python-multipart, ipykernel (user did not answer).
 - `pyproject.toml` has `[tool.ruff]` (line-length 120, rules E/F/W). `scripts/check.py` runs ruff as a WARN-level step (lint never blocks the flow).
 - System-wide: GitHub CLI `gh` 2.102.0 (winget; not logged in), git, Node.js, VS Code. System Python is 3.14.3 (unused).
 
@@ -49,6 +50,12 @@
 - Skills added: `/eval`, `/edge-cases`, `/share-out` (publishes to Notion/Drive/Canva only on request, after confirmation and a secrets check). `CLAUDE.md` documents flow, modules and MCP.
 - Tests: `tests/test_common_modules.py` (21, fake SDK client) + scaffold tests; 32 total. Mutations (retry 4xx, retry mid-stream, drop usage record, ignore refusal) each failed a test, then reverted.
 
+**Korean retrieval fix (Entry 017)**
+- Problem measured: the RAG starter's whitespace TF-IDF scored 0 for Korean queries whose words only appear with particles attached ("배송" vs "배송은").
+- Fix: new `starters/common/textsearch.py` (`Index(chunks).search(q, k)`): kiwipiepy content-morpheme tokens + self-written BM25 (no new dependency); falls back to character bigrams when kiwipiepy is missing. `rag_agent/app.py` uses it and returns "관련 문서 없음" on zero score instead of padding with unrelated chunks. Scaffold README lists the module (`scripts/new_project.py`).
+- `tests/test_textsearch.py` (7 tests, kiwi and bigram paths, empty/symbol-only input, plain-TF-IDF baseline = 0). 39 tests total.
+- Limits: keyword-only (no synonym match; sentence-transformers hybrid not wired); only a 3-document toy corpus, so no accuracy number exists; Streamlit app not run end-to-end.
+
 **Rehearsal (Entry 010)**
 - Ran the full flow once on a dummy topic (breast-cancer classifier, no API) in a scratch copy of the kit; report in `docs/rehearsal-report.md`. Elapsed ~7 min is AI execution time, not human time (not usable as a 120-min estimate).
 - Both agents were actually invoked: `verifier` found silent acceptance of nonsense inputs; `interviewer` found unreproducible presentation numbers, weak tests, training-row demo samples, and a "0 won" cost claim. A threshold decision made on one small holdout was reversed after CV.
@@ -66,13 +73,20 @@
 - `uv.lock` / `.venv` do not exist; the real environment is conda `work`. `pip install` into `work` was used, so a fresh `uv sync` was not tested with the new deps (unverified).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- Everything up to Entry 012 is pushed to `origin/claude/wizardly-gates-yc1p6c` (0aa1ede..8aa21ff). Entries 013-015 changes are uncommitted. `.vscode/` and `1.txt` stay untracked.
+- Everything up to Entry 012 is pushed to `origin/claude/wizardly-gates-yc1p6c` (0aa1ede..8aa21ff). Entries 013-016 are committed locally (2 commits ahead of origin before Entry 017); Entry 017 is committed in the wrap-up. Nothing after Entry 012 is pushed. `.vscode/` and `1.txt` stay untracked.
+- Latest harness (Entry 017): `check.py` 4 PASS / 1 WARN (no API key) / 0 FAIL; pytest 39 passed; ruff clean.
 - Not verified: new skills (`/new-project`, `/eval`, `/edge-cases`, `/share-out`) not invoked as slash commands; real `streamlit run` and any live API call (no key) — retry/fallback/caching/streaming/structured output were tested only against a fake client, so real cache hits and `messages.parse` behavior are unconfirmed; Playwright/context7 were not started as MCP servers inside Claude Code (needs a new session + approval, Chrome install assumed); `/share-out` never publishes in tests; `pip install -r requirements.txt` into a fresh env not run.
 - Server-side refusal `fallbacks` (beta) are not enabled; refusals are surfaced as mock fallback instead.
 - Session operation (discussed, nothing built): one writer session per project folder; extra sessions only read (summary) or publish finished, committed artifacts (`/share-out`). Offered but not built: read-only `scripts/status.py` and `docs/sessions.md`. Whether the interview rules allow multiple sessions is unknown.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
 ## Log (newest first)
+
+### Entry 017 — 2026-10-14 — Deep-learning packages and Korean retrieval fix
+- Answered "what to install with PyTorch"; installed torch/torchvision/torchaudio/transformers/sentence-transformers/accelerate/datasets/tqdm/pillow into conda `work` (CPU build) and added them to `pyproject.toml` extras (16 entries; dry-run resolve clean). Reported measured sizes.
+- Reviewed RAG readiness: starter existed (TF-IDF + agent loop + mock fallback) but scored 0 on Korean queries. Fixed with `common/textsearch.py` (kiwipiepy + BM25, bigram fallback) and a no-result message; added 7 tests. A first baseline test was wrong (doc contained the bare token) and was corrected before commit.
+- Wrap-up: `check.py` 4 PASS / 1 WARN / 0 FAIL, pytest 39 passed. Committed locally; not pushed.
+- Open: hybrid embedding search, PDF loading, retrieval-hit-rate eval, and a real `streamlit run` are not done.
 
 ### Entry 016 — 2026-10-14 — Explanations and wrap-up
 - Explained Playwright/context7 roles and caveats; discussed splitting work into reader / worker / external-publisher sessions (recommendation: single writer, others read-only). No code changes.

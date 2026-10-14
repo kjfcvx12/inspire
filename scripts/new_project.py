@@ -79,6 +79,7 @@ python scripts/cost_report.py       # 실제 API 비용 리포트(logs/usage.jso
 - `common/db.py` — SQLite 저장(`Store.add/list/kv_set`). 파일: `data/app.db`
 - `common/evalkit.py`, `eval/golden.jsonl` — 골든셋 평가. `common/edgecases.py` — 엣지 입력 모음
 - `common/usage_log.py` — 호출별 토큰·비용 기록(`logs/usage.jsonl`)
+- `common/textsearch.py` — 한국어 키워드 검색(형태소+BM25, kiwipiepy 없으면 bigram 폴백). `Index(chunks).search(q, k)`
 - `scripts/` — `check.py`(하네스), `eval.py`, `cost_report.py`, `start.py`(시작 시각 기록)
 - `tests/` — 스모크·엣지·골든 테스트부터 시작해 핵심 기능 테스트를 추가한다
 - `docs/decisions.md` — 결정 로그(시각 · 결정 · 이유)
