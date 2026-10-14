@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 024, 2026-10-14)
+## Current State (cumulative, as of Entry 025, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -64,6 +64,12 @@
 - `/share-out` end-to-end test: pre-publish safety review, then one Notion private draft (`notion-create-pages`, draft mode) containing the check summary; re-fetched and rendered correctly. No secrets or personal paths in the content. Drive and Canva were not exercised. The test page remains in the user's Notion as a private draft.
 - Downloaded PDFs/images were kept outside the repo in a scratch folder and read with `python -I`; nothing from them was committed.
 
+**Docker verified and `--docker` scaffold option (Entry 025)**
+- After the reboot Docker Desktop was not running (service `com.docker.service` is Manual; no autostart) and was launched by hand; engine 29.8.2 came up, WSL 3.0.3 with a `docker-desktop` distro in WSL 2, `docker run --rm hello-world` exit 0. So the Entry 024 "engine would not start" was a pending-reboot effect (consistent with, not proof of, the earlier inference); the Hyper-V fallback was not needed.
+- Scratch test (RAG scaffold, `python:3.11-slim`, not committed): cold build 94 s, image 1.43 GB, `/_stcore/health` ok, page 200, no key file in the image, `pytest -q` inside the container 23 passed, an injected `-e ANTHROPIC_API_KEY` is visible and wins over the file (`load_dotenv(override=False)`). Not tested: real API call from the container, `--env-file` with a real key, `SEARCH_MODE=hybrid` (sentence-transformers is not in the image; use `bm25`).
+- `scripts/new_project.py --docker` (opt-in, default off) writes `Dockerfile` (Streamlit CMD on 8501; `predict` runs `train.py`), `.dockerignore` (key file, `.env.*` except `.env.example`, `logs/`, `*.db`, venv, caches) and a README "Docker" section. 5 new tests in `tests/test_new_project.py`: files only with the flag, dockerignore order and CMD per kind, scaffold passes its own `check.py`, and an opt-in (`RUN_DOCKER_TESTS=1`) real build asserting the image holds only `.env.example` even when the folder has a key file, plus `pytest` inside the image (passed, ~64 s for the 6 docker tests).
+- Docker is not needed for the interview itself (local `streamlit run` is the default path); it is an optional "runs anywhere" demo. First build must be done beforehand to warm the cache.
+
 **Start-flow dry run, mock-label fix, Docker Desktop (Entry 023)**
 - Dry run of the interview start flow on throw-away scaffolds (scratch folder, not in the repo): `new_project.py --type blank` -> `start.py` -> `check.py` gave 6 PASS / 0 WARN / 0 FAIL; without a key `check.py` gives a WARN ("mock fallback"), not a FAIL. `python` on PATH is conda `work` (3.12.15).
 - Fallback probe (empty key and invalid key -> 401): `llm.ask`/`stream_text` return a fallback in 0.0-0.4 s without raising. Defect found: a custom `fallback` string/callable reached the screen with no "(mock)" marker, and `stream_text` gave the caller no way to tell it was mock (its docstring wrongly said `Reply.mock=True`). Fix in `starters/common/llm.py`: `_fallback_text` always prefixes `(mock) ` (`MOCK_LABEL`); three test expectations updated. Re-probed on a fresh scaffold: all three paths show `(mock) ...`.
@@ -120,17 +126,22 @@
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
 - Origin has everything up to Entry 023 (pushed with "클리어 푸시"); Entry 023 was pushed with "클리어 푸시" at the end of Entry 023. `git push` is not in the allow list, so a permission prompt appears.
-- Latest harness (Entry 023): kit `check.py` 6 PASS / 0 WARN / 0 FAIL, ruff clean, pytest 105 passed (`--api` live ping last run in Entry 021: 7 PASS). Fresh-clone and standalone-scaffold reproduction were last verified in Entry 019 (62 / 23 passed) and not repeated since.
+- Latest harness (Entry 025): kit `check.py` 6 PASS / 0 WARN / 0 FAIL, ruff clean, pytest 110 passed / 1 skipped (the skipped one is the opt-in real docker build; it passed when run with `RUN_DOCKER_TESTS=1`) (`--api` live ping last run in Entry 021: 7 PASS). Fresh-clone and standalone-scaffold reproduction were last verified in Entry 019 (62 / 23 passed) and not repeated since.
 - Entry 022 open: extras (torch etc.) were not installed or run on Python 3.14; on 3.11 only the core pytest was run (no live API, Streamlit, or extras); human build time for Streamlit vs FastAPI is unmeasured; the env-file hook assumes `python` is on PATH in the hook shell and fails open if it is not (verify with `check.py` and one blocked probe before the interview); measurement scripts for the rationale checks were run from a scratch folder and are not committed (only the hook test is), so those numbers are reproducible from the commands listed in `docs/decisions.md`, not from a script.
 - Still not verified: a full 120-minute human run-through; the Haiku >100K-token price tier is not modeled in `usage_log.PRICES`; real third-party PDFs were limited to one government-style policy report and four Wikipedia-rendered PDFs (no multi-column journals, no table-heavy statements); synthetic scans are screen captures; real handwriting was only a Joseon-era brush letter (reported as unreadable, accuracy uncheckable) - modern handwriting accuracy is unknown; `/share-out` was exercised once end to end (Notion private draft only; Drive and Canva paths untested).
 - Server-side refusal `fallbacks` (beta) are not enabled; refusals are surfaced as mock fallback instead.
 - Session operation (discussed, nothing built): one writer session per project folder; extra sessions only read (summary) or publish finished, committed artifacts (`/share-out`). Offered but not built: read-only `scripts/status.py` and `docs/sessions.md`. Whether the interview rules allow multiple sessions is unknown.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
-- Entry 024: Docker engine did NOT start before the reboot (`docker desktop status` stopped; `docker desktop restart` failed with 'context deadline exceeded'; no explicit error in `com.docker.backend.exe.log`, only repeated 'backend is not running'; no VM process; license terms already accepted). Likely cause is the pending reboot after the WSL install (inference, not confirmed by the log); re-check after the reboot with `docker run --rm hello-world`; if it still fails, try the Hyper-V backend.
-- Entry 023 open: Docker engine start and `hello-world` unverified; Docker Desktop autostart and memory use during the interview should be turned off if unused; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are still not done; default fallback text exposes raw error text.
+- Entry 025: Docker engine check is closed (works after reboot). Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); containerized run with a real key/API call and hybrid search untested; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text. Test image `dockertest` (1.43 GB) may still be in the local Docker store (`docker rmi dockertest`).
 
 ## Log (newest first)
+
+### Entry 025 — 2026-10-14 — Docker verified after reboot, `--docker` scaffold option
+- User said the reboot was done, then asked how Docker would be used "in the test" (clarified: a trial run, not interview day), then "둘다 진행" (add a `--docker` option and record the result).
+- Launched Docker Desktop (it was not running), verified the engine with `hello-world`, built and ran a RAG scaffold image in a scratch folder (numbers in Current State), then implemented `new_project.py --docker` with 5 tests. Kit `check.py` 6 PASS, pytest 110 passed / 1 skipped, ruff clean.
+- Mistakes caught: the env-file guard hook blocked two of my commands because the text named the key file (a `grep` in a container check, then a heredoc of test code); reran with a Python dotfile listing and the Edit tool. `Select-Object -First 6` cut off the first `docker run` output, so success was only confirmed on a rerun (exit 0). Two ruff E501 lines in `new_project.py` fixed.
+- Open: see Current State (autostart, real-key container run, hybrid in container, rehearsals); not pushed (push needs "클리어 푸시").
 
 ### Entry 024 — 2026-10-14 — Docker engine check (before reboot)
 - User asked to check the Docker engine; then said the reboot had not happened yet, then "클리어".

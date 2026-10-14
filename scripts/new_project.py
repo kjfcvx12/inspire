@@ -1,4 +1,4 @@
-"""작업 폴더 생성. 사용: python scripts/new_project.py <이름> [--type rag|predict|blank] [--dest DIR]
+"""작업 폴더 생성. 사용: python scripts/new_project.py <이름> [--type rag|predict|blank] [--dest DIR] [--docker]
 projects/<이름>/ 에 '그 폴더만 옮겨도 단독으로 실행·검사되는' 프로젝트를 만든다.
 레포의 스타터·공통 코드·하네스(check.py 등)를 복사해 넣으므로, 이후 모든 작업은 그 폴더 안에서만 한다."""
 import argparse
@@ -109,6 +109,35 @@ GITIGNORE = (".env\n.venv/\n__pycache__/\n*.pyc\n.pytest_cache/\n.ruff_cache/\n.
              "logs/\n*.db\n")
 RUFF = 'line-length = 120\nexclude = [".venv", "data", "logs"]\n\n[lint]\nselect = ["E", "F", "W"]\n'
 PYTEST = "[pytest]\ntestpaths = tests\n"
+DOCKERIGNORE = (".env\n.env.*\n!.env.example\n.venv/\nlogs/\n*.db\n__pycache__/\n*.pyc\n"
+                ".pytest_cache/\n.ruff_cache/\n.git/\n")
+_STREAMLIT_CMD = ('["streamlit", "run", "app.py", "--server.address=0.0.0.0", '
+                  '"--server.port=8501", "--server.headless=true"]')
+DOCKER_CMD = {  # Streamlit 유형은 8501 포트, predict는 인자가 필요해 사용법만 출력된다
+    "rag": _STREAMLIT_CMD,
+    "blank": _STREAMLIT_CMD,
+    "predict": '["python", "train.py"]',
+}
+DOCKERFILE = """FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8501
+ENV PYTHONUTF8=1
+CMD {cmd}
+"""
+DOCKER_README = """
+## Docker (선택, `--docker`로 생성됨)
+```
+docker build -t demo .                                  # 첫 빌드 약 1.5분(pip install), 이후엔 캐시
+docker run --rm -p 8501:8501 --env-file .env demo       # http://localhost:8501 (키 없으면 mock 폴백)
+docker run --rm demo python -m pytest -q                # 컨테이너 안 테스트
+```
+- `.dockerignore`가 `.env`를 이미지에서 뺀다. 키는 `--env-file`/`-e`로 실행 시에만 주입한다.
+- 임베딩(`SEARCH_MODE=hybrid`)용 sentence-transformers는 이미지에 없다. 컨테이너에서는 `bm25`를 쓴다.
+- 15분 안에 안 되면 포기하고 로컬 실행(`{run}`)으로 간다.
+"""
 DECISIONS = (
     "# 결정 로그\n"
     "- (HH:MM) START — 시작 시각 (`python scripts/start.py`가 현재 시각으로 교체)\n"
@@ -251,7 +280,8 @@ def write(path: Path, text: str):
         f.write(text)
 
 
-def create(name: str, kind: str, dest: Path, env_src: Optional[Path] = None, copy_env: bool = True) -> Path:
+def create(name: str, kind: str, dest: Path, env_src: Optional[Path] = None, copy_env: bool = True,
+           docker: bool = False) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
         raise SystemExit(f"이름은 영문/숫자/_/- 만 가능합니다: {name!r}")
     proj = dest / name
@@ -277,7 +307,12 @@ def create(name: str, kind: str, dest: Path, env_src: Optional[Path] = None, cop
     src = env_src if env_src is not None else ROOT / ".env"
     if copy_env and src.is_file():  # 내용을 읽거나 출력하지 않고 파일째 복사한다
         shutil.copy2(src, proj / ".env")
-    write(proj / "README.md", README.format(name=name, kind=kind, run=RUN[kind], main=main))
+    readme = README.format(name=name, kind=kind, run=RUN[kind], main=main)
+    if docker:
+        readme += DOCKER_README.format(run=RUN[kind])
+        write(proj / "Dockerfile", DOCKERFILE.format(cmd=DOCKER_CMD[kind]))
+        write(proj / ".dockerignore", DOCKERIGNORE)
+    write(proj / "README.md", readme)
     write(proj / "requirements.txt", requirements(kind))
     write(proj / ".gitignore", GITIGNORE)
     write(proj / "ruff.toml", RUFF)
@@ -296,8 +331,9 @@ if __name__ == "__main__":
     ap.add_argument("--type", choices=["rag", "predict", "blank"], default="blank", dest="kind")
     ap.add_argument("--dest", default=str(ROOT / "projects"))
     ap.add_argument("--no-env", action="store_true", help="키트의 .env를 복사하지 않는다")
+    ap.add_argument("--docker", action="store_true", help="Dockerfile·.dockerignore를 함께 만든다(선택)")
     a = ap.parse_args()
-    p = create(a.name, a.kind, Path(a.dest), copy_env=not a.no_env)
+    p = create(a.name, a.kind, Path(a.dest), copy_env=not a.no_env, docker=a.docker)
     print(f"생성: {p}")
     has_env = (p / ".env").is_file()
     print(".env: " + ("복사됨(키 값은 출력하지 않음)" if has_env else "없음 — .env.example을 복사해 키를 넣으세요"))

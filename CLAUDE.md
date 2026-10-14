@@ -20,7 +20,7 @@ Python 3.11 · uv · FastAPI/Streamlit · scikit-learn · SQLite(또는 Supabase
 ## 명령어
 활성화된 환경(conda `work` 또는 uv `.venv`)에서 실행한다. uv를 쓰면 앞에 `uv run`을 붙인다.
 - 설치: `uv sync` (conda는 `conda activate work`, 선택 패키지는 `uv sync --extra extras`)
-- 작업 폴더 생성: `python scripts/new_project.py <이름> --type rag|predict|blank` → `projects/<이름>/` (이후 그 폴더의 `scripts/check.py` 등을 사용. 단독 동작은 `tests/test_new_project.py`가 검증)
+- 작업 폴더 생성: `python scripts/new_project.py <이름> --type rag|predict|blank [--docker]` → `projects/<이름>/` (`--docker`는 선택: Dockerfile·.dockerignore 추가, 면접 필수 아님. 이후 그 폴더의 `scripts/check.py` 등을 사용. 단독 동작은 `tests/test_new_project.py`가 검증)
 - 시작 시각 기록: `python scripts/start.py` (프로젝트 폴더의 `scripts/start.py`는 그 폴더의 decisions.md를 갱신한다. 결정 로그 파일은 Edit/Write 도구나 파이썬으로만 수정한다. PowerShell `Get-Content`/`Set-Content`는 한글이 깨질 수 있다)
 - 하네스(한 번에 검사): `python scripts/check.py` (`--api`를 붙이면 API 실호출까지 확인)
 - 예측 스타터: `python starters/predict/train.py data.csv target_col`

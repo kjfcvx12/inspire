@@ -1,5 +1,6 @@
 """new_project.py가 만든 폴더가 '옮겨도 단독으로' 동작하는지 검증한다.
 tmp_path는 레포 밖이므로 폴더를 다른 곳으로 옮긴 상황과 같다."""
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -98,3 +99,50 @@ def test_rag_scaffold_has_retrieval_eval_and_kiwipiepy_pypdf_requirements(tmp_pa
     r = run(["scripts/eval_retrieval.py", "eval/retrieval.jsonl", "--mode", "bm25", "--min-hit", "1.0"], proj)
     assert r.returncode == 0, r.stdout[-600:] + r.stderr[-300:]
     assert "hit@k" in r.stdout and (proj / "logs" / "eval_retrieval.json").is_file()
+
+
+def test_docker_files_only_with_flag(tmp_path):
+    assert not (new_project.create("a", "rag", tmp_path, copy_env=False) / "Dockerfile").exists()
+    proj = new_project.create("b", "rag", tmp_path, copy_env=False, docker=True)
+    df = (proj / "Dockerfile").read_text(encoding="utf-8")
+    assert "streamlit" in df and "--server.address=0.0.0.0" in df and "EXPOSE 8501" in df
+    assert "## Docker" in (proj / "README.md").read_text(encoding="utf-8")
+    assert "## Docker" not in (tmp_path / "a" / "README.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("kind", ["rag", "predict", "blank"])
+def test_dockerignore_keeps_env_out_of_image(tmp_path, kind):
+    proj = new_project.create("demo", kind, tmp_path, copy_env=False, docker=True)
+    lines = (proj / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    assert ".env" in lines and "!.env.example" in lines and lines.index(".env") < lines.index("!.env.example")
+    assert "logs/" in lines and "*.db" in lines
+    cmd = [ln for ln in (proj / "Dockerfile").read_text(encoding="utf-8").splitlines() if ln.startswith("CMD")]
+    assert len(cmd) == 1 and ("train.py" in cmd[0] if kind == "predict" else "app.py" in cmd[0])
+
+
+def test_docker_scaffold_still_passes_own_check(tmp_path):
+    proj = new_project.create("demo", "rag", tmp_path, docker=True)
+    r = run(["scripts/check.py"], proj)
+    assert r.returncode == 0, r.stdout[-800:]
+
+
+@pytest.mark.skipif(not os.environ.get("RUN_DOCKER_TESTS"),
+                    reason="실제 docker build(약 1.5분, 엔진 필요)는 RUN_DOCKER_TESTS=1일 때만")
+def test_docker_image_has_no_env_and_runs_pytest(tmp_path):
+    secret = "sk-test-DO-NOT-LEAK-654321"
+    src = tmp_path / "kit.env"
+    src.write_text(f"ANTHROPIC_API_KEY={secret}\n", encoding="utf-8")
+    proj = new_project.create("demo", "blank", tmp_path, env_src=src, docker=True)
+    assert (proj / ".env").is_file()  # 폴더엔 .env가 있지만 이미지엔 없어야 한다
+    tag = "kit-docker-test"
+    b = subprocess.run(["docker", "build", "-q", "-t", tag, str(proj)], capture_output=True, text=True)
+    assert b.returncode == 0, b.stderr[-600:]
+    try:
+        code = "import os; print(sorted(f for f in os.listdir('/app') if f.startswith('.env')))"
+        r = subprocess.run(["docker", "run", "--rm", tag, "python", "-c", code], capture_output=True, text=True)
+        assert r.stdout.strip() == "['.env.example']", r.stdout + r.stderr[-300:]
+        t = subprocess.run(["docker", "run", "--rm", tag, "python", "-m", "pytest", "-q"],
+                           capture_output=True, text=True)
+        assert t.returncode == 0, t.stdout[-600:]
+    finally:
+        subprocess.run(["docker", "rmi", "-f", tag], capture_output=True)
