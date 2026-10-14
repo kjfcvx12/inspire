@@ -73,6 +73,7 @@
   - Real key via `--env-file`: `ask()` in the container answered from `data/sample.md` with a source, not mock; 2 calls = $0.0044 (1,113 in / 222 out), recorded in the container's `usage.jsonl` and shown by `cost_report.py`. Without a key the container returned `(mock) ...` (rc 0, no crash).
   - `SEARCH_MODE=hybrid` on the plain image: loads, `index mode: bm25` (silent fallback), `ask()` works. A one-chunk sample doc cannot show a hybrid difference.
   - Real hybrid image (extra layers: CPU torch from `download.pytorch.org/whl/cpu`, sentence-transformers, model baked in with a build-time load): build 106 s, image 3.62 GB. With `--network none`, `eval_retrieval.py` on `data/demo_faq` + `eval/retrieval_demo.jsonl` gave bm25 hit@3 73% / MRR 0.73 and hybrid 100% / 0.88 (same as the host numbers), 13 s run; app `ask()` reported `index mode: hybrid` and answered via the real API. Recipe added to the generated README's Docker section (test asserts it is there).
+  - Browser check of the containerized page (fresh `--docker` scaffold, `-p 8501:8501 --env-file`, driven with Playwright MCP): page loads after ~5 s, sidebar shows "문서 청크 1개 · 검색 bm25", a Korean question returned a grounded answer with `출처: data/sample.md`, per-question cost line (≈ $0.0050, 2 calls) and the history sidebar entry. Container, image and scratch folder removed; a screenshot written to the repo root by the tool was deleted (`.playwright-mcp/` is git-ignored, the repo root is not).
   - Docker Desktop does not autostart (`com.docker.service` Manual); this is a setting, not a test, and was left as is.
   - Test images (`dockertest`, `dkreal`, `dkhybrid`) were removed afterwards; only `hello-world` remains.
 
@@ -139,14 +140,15 @@
 - Session operation (discussed, nothing built): one writer session per project folder; extra sessions only read (summary) or publish finished, committed artifacts (`/share-out`). Offered but not built: read-only `scripts/status.py` and `docs/sessions.md`. Whether the interview rules allow multiple sessions is unknown.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
-- Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the container was only tested through `ask()`/`eval_retrieval.py` inside it, not through the Streamlit page in a browser; the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
+- Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
 
 ### Entry 026 — 2026-10-14 — Container tests of the unverified items (real key, hybrid)
 - User asked to test the items left unverified in Entry 025. Ran: real-key container run, mock path, `SEARCH_MODE=hybrid` without the model, and a real hybrid image offline (results in Current State under Entry 025). Added the hybrid recipe to the `--docker` README text and a test assertion for it.
 - Mistakes caught: a first README line was too long for ruff (E501, twice); the README's model-load command was shortened with an import alias after the tested one, so the exact shortened line itself was not rebuilt (same import, only aliased). The env-file guard again required putting the key-file path in script files (written with the Write tool) rather than shell commands; the key was masked in output and never displayed.
-- Open: see Current State (browser check of the containerized page, autostart, rehearsals); not pushed.
+- Later in the same entry the user asked for the browser check; it passed (details in Current State). Tool note: `browser_take_screenshot` with a bare filename writes into the repo root, so use a path under `.playwright-mcp/`.
+- Open: see Current State (autostart, hybrid page in a browser, rehearsals); not pushed.
 
 ### Entry 025 — 2026-10-14 — Docker verified after reboot, `--docker` scaffold option
 - User said the reboot was done, then asked how Docker would be used "in the test" (clarified: a trial run, not interview day), then "둘다 진행" (add a `--docker` option and record the result).
