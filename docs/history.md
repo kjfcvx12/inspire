@@ -119,7 +119,7 @@
 - `uv.lock` / `.venv` do not exist; the real environment is conda `work`. `pip install` into `work` was used, so a fresh `uv sync` was not tested with the new deps (unverified).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- Origin has everything up to Entry 022 (pushed with "클리어 푸시" at the end of Entry 022); Entry 023 is committed locally and not pushed (push needs "클리어 푸시"). `git push` is not in the allow list, so a permission prompt appears.
+- Origin has everything up to Entry 023 (pushed with "클리어 푸시"); Entry 023 was pushed with "클리어 푸시" at the end of Entry 023. `git push` is not in the allow list, so a permission prompt appears.
 - Latest harness (Entry 023): kit `check.py` 6 PASS / 0 WARN / 0 FAIL, ruff clean, pytest 105 passed (`--api` live ping last run in Entry 021: 7 PASS). Fresh-clone and standalone-scaffold reproduction were last verified in Entry 019 (62 / 23 passed) and not repeated since.
 - Entry 022 open: extras (torch etc.) were not installed or run on Python 3.14; on 3.11 only the core pytest was run (no live API, Streamlit, or extras); human build time for Streamlit vs FastAPI is unmeasured; the env-file hook assumes `python` is on PATH in the hook shell and fails open if it is not (verify with `check.py` and one blocked probe before the interview); measurement scripts for the rationale checks were run from a scratch folder and are not committed (only the hook test is), so those numbers are reproducible from the commands listed in `docs/decisions.md`, not from a script.
 - Still not verified: a full 120-minute human run-through; the Haiku >100K-token price tier is not modeled in `usage_log.PRICES`; real third-party PDFs were limited to one government-style policy report and four Wikipedia-rendered PDFs (no multi-column journals, no table-heavy statements); synthetic scans are screen captures; real handwriting was only a Joseon-era brush letter (reported as unreadable, accuracy uncheckable) - modern handwriting accuracy is unknown; `/share-out` was exercised once end to end (Notion private draft only; Drive and Canva paths untested).
@@ -136,7 +136,7 @@
 - Ran the start flow and the fallback probes on scratch scaffolds; fixed the unmarked custom fallback text (see Current State); suite 105 passed, ruff clean, `check.py` 6 PASS.
 - Installed Docker Desktop with winget; WSL was installed by the user; engine start not verified before the reboot.
 - Mistakes caught: my first probe file was never written because the command was blocked first, so the next run failed on a missing file (written with the Write tool); a docstring edit made a line over 120 wide characters and failed three scaffold tests until shortened; I first read the stale `wsl --status` output as "WSL not installed" and corrected it with `wsl --version`.
-- Open: Docker engine check, Dockerfile template (only if wanted), abridged and full rehearsals, push.
+- Open: Docker engine check, Dockerfile template (only if wanted), abridged and full rehearsals.
 
 ### Entry 022 — 2026-10-14 — Design rationale log, testing the guesses, env-file guard
 - User asked to see the current setup summary, then to record why each choice was made and why alternatives were not, put that table into `docs/decisions.md`, replace every `[추정]` (guess) by testing it directly, strengthen the `.env` protection, and settle the reasons for the Python version and the Streamlit / MCP-pin rows. Then "클리어".
