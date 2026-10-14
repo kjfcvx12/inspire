@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 026, 2026-10-14)
+## Current State (cumulative, as of Entry 027, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -63,6 +63,12 @@
 - `docloader` OCR hardening: prompt asks for `[판독불가]` / `[다른 문자]` markers instead of guessing; markers are stripped before indexing; if unreadable marks exceed 25% of (marks + words) a reliability warning is added to `skipped`; OCR pages with fewer than 6 content characters (page numbers) count as missing; the OCR cache key now includes the prompt.
 - `/share-out` end-to-end test: pre-publish safety review, then one Notion private draft (`notion-create-pages`, draft mode) containing the check summary; re-fetched and rendered correctly. No secrets or personal paths in the content. Drive and Canva were not exercised. The test page remains in the user's Notion as a private draft.
 - Downloaded PDFs/images were kept outside the repo in a scratch folder and read with `python -I`; nothing from them was committed.
+
+**Abridged rehearsal on a `blank` topic (Entry 027)**
+- Topic chosen by me as a default: "meeting notes -> action items extractor" (Streamlit, `common.structured`, golden set), built in a scratch scaffold with the real key. Wall time 14:20:31 -> 14:25:19 (~5 min of AI execution time; not a human 120-minute estimate). `check.py` 6 PASS, 24 offline tests, golden set 12/12, 59 API calls = $0.0635 (dev cost incl. evals and mutations; runtime cost per extraction ~ $0.001).
+- Core worked at the first live call (3 of 3 items, discussion and finished items excluded, unknown owner = "미정"). Page checked in Chrome through Playwright (input -> table + count).
+- Finding (kit change): the golden set did NOT discriminate the prompt. Removing only the system prompt scored 7/7 and 12/12 because the schema field descriptions still carried the rules; removing both system prompt and schema descriptions gave 9/12 (failures: one missed item, "미지정" and "화자" instead of "미정" - the first is a string-match limit, the other two are real). Added the "check discrimination by mutating the prompt" step to `.claude/skills/eval/SKILL.md`. Single runs; no repeated trials beyond one rerun (12/12 both times).
+- Not exercised: `/plan`, `/new-project`, `/timecheck`, `/present`, `/demo-ready`, the `verifier` and `interviewer` agents were not invoked in this run (I followed their steps by hand and skipped the presentation script).
 
 **Docker verified and `--docker` scaffold option (Entry 025)**
 - After the reboot Docker Desktop was not running (service `com.docker.service` is Manual; no autostart) and was launched by hand; engine 29.8.2 came up, WSL 3.0.3 with a `docker-desktop` distro in WSL 2, `docker run --rm hello-world` exit 0. So the Entry 024 "engine would not start" was a pending-reboot effect (consistent with, not proof of, the earlier inference); the Hyper-V fallback was not needed.
@@ -143,6 +149,11 @@
 - Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 027 — 2026-10-14 — Abridged rehearsal (meeting-notes action items)
+- User asked for the 30-40 minute abridged rehearsal. I stated a plan (phases, scratch location, measurement), chose the topic, and ran design -> build -> golden set -> mutation checks -> browser check -> decision log -> harness. Details and numbers in Current State.
+- Mistakes caught: `Get-Date -Format 'HH:mm:ss'` printed "14시 20시 31" on this Korean-locale PowerShell (use `'HH\:mm\:ss'`; Python-based `start.py` is unaffected); my first "mutation" left the schema descriptions in place and therefore proved nothing; the first golden set was too easy to separate anything; `start.py` leaves the START line's explanatory text in `decisions.md` (cosmetic).
+- Open: this was AI execution time, so the human rehearsal (full 120 minutes with the real skills and agents) is still not done; `use_container_width` on `st.dataframe` was not checked for deprecation warnings; scratch project not committed (only the skill change).
 
 ### Entry 026 — 2026-10-14 — Container tests of the unverified items (real key, hybrid)
 - User asked to test the items left unverified in Entry 025. Ran: real-key container run, mock path, `SEARCH_MODE=hybrid` without the model, and a real hybrid image offline (results in Current State under Entry 025). Added the hybrid recipe to the `--docker` README text and a test assertion for it.
