@@ -118,7 +118,7 @@ def test_retry_exhausted_raises_after_max_attempts(fake):
 def test_ask_falls_back_to_mock_instead_of_raising(fake):
     fake([status_error(401)])
     r = llm.ask("질문", fallback=lambda p: f"mock:{p}")
-    assert r.mock and r.text == "mock:질문" and "AuthenticationError" in r.error
+    assert r.mock and r.text == "(mock) mock:질문" and "AuthenticationError" in r.error
     fake([status_error(401)])
     assert llm.ask("질문").text.startswith("(mock)")
 
@@ -132,7 +132,7 @@ def test_ask_reports_truncation(fake):
 def test_refusal_becomes_fallback_not_a_real_answer(fake):
     fake([reply("", stop="refusal")])
     r = llm.ask("q", fallback="거절됨")
-    assert r.mock and r.text == "거절됨"
+    assert r.mock and r.text == "(mock) 거절됨"
 
 
 def test_system_is_sent_as_cached_block_unless_disabled(fake):
@@ -164,7 +164,7 @@ def test_stream_retries_before_first_chunk_only(fake):
 
 def test_stream_falls_back_when_nothing_was_emitted(fake):
     fake([status_error(401)])
-    assert "".join(llm.stream_text("q", fallback="오프라인")) == "오프라인"
+    assert "".join(llm.stream_text("q", fallback="오프라인")) == "(mock) 오프라인"
 
 
 # ---- structured --------------------------------------------------------------

@@ -2,7 +2,8 @@
 
 규칙(발표용): 호출 코드는 anthropic을 직접 부르지 않고 이 모듈을 거친다.
 - 재시도: 429/5xx/연결 오류만 지수 백오프로 재시도. 인증·잘못된 요청은 즉시 포기(재시도해도 소용없음).
-- 폴백: 끝내 실패하면 LLMUnavailable. `ask()`/`stream_text()`는 예외 대신 mock 응답(Reply.mock=True)을 돌려준다.
+- 폴백: 끝내 실패하면 LLMUnavailable. `ask()`/`stream_text()`는 예외 대신 mock 응답을 돌려준다.
+  `ask`는 Reply.mock=True, 둘 다 문구 앞에 "(mock) "가 붙는다.
 - 비용: 성공한 호출은 모두 usage_log.record()로 기록한다.
 - 캐싱: system을 cache_control 블록으로 보낸다(접두 512토큰 미만이면 API가 조용히 캐시하지 않는다).
 - 모델: CLAUDE_MODEL 환경변수로 교체 가능. Sonnet 5.5는 강제 tool_choice(any/tool)가 400이므로 쓰지 않는다.
@@ -127,13 +128,20 @@ def _as_messages(prompt):
     return prompt if isinstance(prompt, list) else [{"role": "user", "content": prompt}]
 
 
+MOCK_LABEL = "(mock) "
+
+
 def _fallback_text(fallback: Fallback, prompt, err: str) -> str:
+    """폴백 문구에는 항상 (mock) 표시를 붙인다. stream_text는 mock 여부를 따로 알릴 길이 없고,
+    화면에 r.text만 찍는 앱이 준비된 문구를 진짜 답변처럼 보여주는 일을 막는다."""
     base = str(prompt) if not isinstance(prompt, list) else str(prompt[-1].get("content", ""))
     if callable(fallback):
-        return fallback(base)
-    if isinstance(fallback, str):
-        return fallback
-    return f"(mock) API를 사용할 수 없어 예시 응답을 보여줍니다. 원인: {err}"
+        text = fallback(base)
+    elif isinstance(fallback, str):
+        text = fallback
+    else:
+        return f"{MOCK_LABEL}API를 사용할 수 없어 예시 응답을 보여줍니다. 원인: {err}"
+    return text if text.startswith(MOCK_LABEL.strip()) else MOCK_LABEL + text
 
 
 def ask(prompt, *, system=None, fallback: Fallback = None, tag="", **kw) -> Reply:
