@@ -49,6 +49,28 @@ def test_split_text_overlap_and_guards():
         docloader.split_text("x", size=10, overlap=10)
 
 
+def test_split_clauses_one_chunk_per_clause_with_title():
+    text = "# 휴가 규정\n\n제1조(연차) 연 15일.\n\n제2조(신청) 3일 전까지 신청한다.\n\n제3조(소멸) 3월 말에 소멸한다.\n"
+    chunks = docloader.split_clauses(text)
+    assert len(chunks) == 3
+    assert all(c.startswith("# 휴가 규정\n제") for c in chunks)  # 제목이 각 청크 앞에 붙는다
+    assert "3일 전까지" in chunks[1] and "제2조" in chunks[1]
+    assert "제1조" not in chunks[1]  # 조항이 섞이지 않는다
+
+
+def test_split_clauses_falls_back_when_not_regulation():
+    plain = "첫 문단입니다.\n\n둘째 문단입니다. 제1조 이야기가 문장 중간에 있다."
+    assert docloader.split_clauses(plain) == docloader.split_text(plain)
+    one = "# 규정\n제1조 하나뿐이다."  # 조항 제목이 1개면 기존 분할 유지
+    assert docloader.split_clauses(one) == docloader.split_text(one)
+
+
+def test_split_clauses_long_clause_is_split_again():
+    long_clause = "제1조(긴 조항) " + "가" * 700
+    chunks = docloader.split_clauses(f"# 제목\n{long_clause}\n제2조(짧음) 끝.\n", size=500, overlap=50)
+    assert len(chunks) >= 3 and all(len(c) <= 500 for c in chunks)
+
+
 def test_load_chunks_txt_md_pdf_with_page_and_skips(tmp_path):
     (tmp_path / "a.md").write_text("환불은 7일 이내", encoding="utf-8")
     (tmp_path / "b.txt").write_bytes("한글".encode("cp949"))      # UTF-8 아님

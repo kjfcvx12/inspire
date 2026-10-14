@@ -50,6 +50,8 @@ GOLDEN = {
     "rag": (
         "# 골든셋: 한 줄 = 한 케이스. 규칙은 starters/common/evalkit.py 상단 설명 참고.\n"
         "# 실행: python scripts/eval.py eval/golden.jsonl --target app.py:search\n"
+        "# 이 파일은 pytest(check.py)가 오프라인 search로 돌린다. API가 필요한 답변 수준 케이스는 여기 넣지 말고\n"
+        "# eval/answers.jsonl로 따로 두고 --target app.py:ask 로 돌린다(여기 넣으면 check.py가 깨진다).\n"
         "# 아래 샘플은 data/sample.md 용이다. 실제 문서로 바꾸면 이 줄도 실제 질문으로 교체한다.\n"
         '{"id": "sample-hit", "input": "샘플 문서", "expect": {"contains": ["샘플 문서입니다"]}, '
         '"tags": ["retrieval"]}\n'

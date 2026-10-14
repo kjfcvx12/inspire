@@ -9,10 +9,10 @@ description: 바이브코딩 면접 주제가 주어졌을 때 문제 분석, �
 
 1. **분석**: 문제 정의, 사용자, 성공 기준, 가정 3개, 접근 선택(`starters/predict` 또는 `starters/rag_agent`)
 2. **데이터 판단**
-   - 데이터 필요 → `references/datasets.md`를 읽고 그 절차대로 후보 탐색·다운로드
+   - 데이터 필요 → 이 스킬 폴더의 `references/datasets.md`(`.claude/skills/plan/references/`)를 읽고 그 절차대로 후보 탐색·다운로드
    - 데이터 불필요 → 아이디어 5개(제목 — 한 줄 설명 — 난이도 — 2시간 내 가능 여부) + 추천 1개
 3. **MVP 범위**: 반드시 / 시간 남으면 / 안 함
-4. **시간표**: `references/time-plan.md` 기준으로 작성
+4. **시간표**: `.claude/skills/plan/references/time-plan.md` 기준으로 작성
 5. **첫 5분 할 일**: `python scripts/start.py`로 START 시각을 `docs/decisions.md`에 기록하고, `/harness`로 검사·골든 케이스를 준비하는 것을 포함한다.
 
 ## 출력 형식 (고정)

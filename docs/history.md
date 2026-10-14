@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 029, 2026-10-14)
+## Current State (cumulative, as of Entry 030, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -63,6 +63,17 @@
 - `docloader` OCR hardening: prompt asks for `[판독불가]` / `[다른 문자]` markers instead of guessing; markers are stripped before indexing; if unreadable marks exceed 25% of (marks + words) a reliability warning is added to `skipped`; OCR pages with fewer than 6 content characters (page numbers) count as missing; the OCR cache key now includes the prompt.
 - `/share-out` end-to-end test: pre-publish safety review, then one Notion private draft (`notion-create-pages`, draft mode) containing the check summary; re-fetched and rendered correctly. No secrets or personal paths in the content. Drive and Canva were not exercised. The test page remains in the user's Notion as a private draft.
 - Downloaded PDFs/images were kept outside the repo in a scratch folder and read with `python -I`; nothing from them was committed.
+
+**Skills as skills, and a `rag` rehearsal on company regulations (Entry 030)**
+- `/plan`, `/new-project` and `/timecheck` were invoked through the Skill tool for the first time. `/plan` kept the 5 headers within 40 lines; `/new-project policy_faq rag` created the folder, wrote START 16:21, `check.py` 6 PASS, and the real env file does not appear in `git status`; `/timecheck` produced its 4 headers (elapsed ~1 min at 16:22). Two skill ambiguities fixed: `/timecheck` now says START is read from the project folder's `docs/decisions.md` (the kit root file is an empty template), and `/plan` names its `references/` path as the skill folder.
+- Rehearsal topic (my default, not given by anyone): FAQ bot over company regulations (leave, expense, security). Three AI-written synthetic documents (6 clauses each, ~500 chars per file), so results say nothing about real regulations.
+- First result with the untouched starter: 6 chunks (one per file plus a tiny tail), retrieval hit@3 bm25 92% / hybrid 100%, answer-level golden 9/10. The one failure was my case, not the app: `not_contains: 평균임금` matched the model quoting its own search query while correctly answering "no evidence". Case rewritten (regex for the no-evidence wording, `not_contains` on the three source file names).
+- The retrieval numbers were document-level only (a file is about one chunk). Added clause-level splitting (`split_clauses`, one chunk per `제N조`, title line prefixed) -> 18 chunks. At k=1: bm25 92% (one miss: the alias "챗GPT" shares no token with "생성형 AI"), hybrid 92%; at k=3: bm25 92%, hybrid 100% / MRR 94%. "No evidence" passes: bm25 2/2, hybrid 0/2 (embeddings always return something), so the answer step must say "no evidence". Twelve positive cases and one differing case: not a proof that hybrid is better.
+- Answer-level golden (10 cases, real API) 10/10 on two runs after the case fix. Prompt mutation (same cases): original 10/10, rules removed 6/10, bare prompt 7/10. The reasons for the failing mutated cases were not opened (probably missing source/clause citations; unverified). Page checked with `AppTest` only (no browser): title, 0 exceptions, answer cites 제2조 and data/leave.md.
+- A mistake caught by `check.py`: I put API-requiring answer cases into `eval/golden.jsonl`, which pytest runs offline against `search` -> FAIL. Split into `eval/answers.jsonl` (`--target app.py:ask`); the `rag` scaffold template header and the `/eval` skill now say so.
+- Kit changes: `starters/common/docloader.py` `split_clauses` (falls back to `split_text` when fewer than 2 clause headings; 3 new tests in `tests/test_retrieval_stack.py`), `scripts/new_project.py` golden template comment, `/eval` skill (file split, no-evidence case design, count chunks before trusting hit@k). Existing project folders keep their old copy. Kit: `check.py` 6 PASS, pytest 114 passed / 1 skipped, ruff clean.
+- Cost (project log, dev): 135 calls, $0.5323, about $0.0039 per call (the rag agent loops 2-3 calls per question; the extractor in Entry 027 was $0.0013), one live page question ≈ $0.0079.
+- Not done: browser check of this page; `SEARCH_MODE=hybrid` with the answer-level set; `/harness`, `/build-loop`, `/checkpoint` as skills; human 120-minute run. Project moved to the scratchpad (`rehearsal/policy_faq`), not committed.
 
 **`/demo-ready` on the rehearsal project (Entry 029)**
 - Seven items run one by one on the scratch `meetact` project: (1) `check.py --api` 7 PASS incl. live ping; (2)-(3) fresh `AppTest` run: 0 exceptions, sample input gave 3 items and "3건" in 5.9 s; (4) README was the generic scaffold template (no app description, placeholder `--target app.py:함수`, rag-only lines) -> rewritten for this app; (5) key value found in no file other than the env file, `.gitignore` has the entry; (6) invalid key and empty key both returned `(mock)` in 0.1-0.4 s, and at screen level the page showed the warning with no exception; (7) script 597 characters without spaces = about 1.7-2.1 min at 280-360 characters/min (an assumed speaking rate, not a measured reading), cost sentences re-checked against `cost_report.py` (now 126 calls, $0.1637 -> `evidence.md` and `presentation.md` updated).
@@ -161,6 +172,11 @@
 - Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 030 — 2026-10-14 — Skills invoked as skills, `rag` rehearsal, clause-level chunking
+- User said "순서대로 진행" for the list (1 interviewer message draft, 2 skill calls, 3 `rag` rehearsal, 4 day-of checklist). Step 1 was a draft message only (needs the user's reply: scope of "setup"); steps 2-3 are in Current State. Step 4 (checklist) not done yet.
+- Mistakes caught: my own golden case marked a correct answer as a failure; answer-level cases in the offline golden file broke `check.py`; the first retrieval numbers looked good only because each file was about one chunk.
+- Open: step 4; interviewer reply on setup scope; browser check and hybrid answer-level run for the regulation bot; human 120-minute run; not pushed (7 earlier unpushed commits plus this entry's commit).
 
 ### Entry 029 — 2026-10-14 — /demo-ready on the rehearsal project
 - User said "y" to running `/demo-ready`. Ran the seven checks with real executions (details in Current State), fixed the README and two stale cost numbers, and wrote the browser-less check method into the skill.

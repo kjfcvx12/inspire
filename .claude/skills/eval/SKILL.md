@@ -6,11 +6,14 @@ description: 골든셋 평가를 만들고 실행해 통과율을 재현 가능�
 목적: "잘 됩니다"가 아니라 `N건 중 M건 통과`를 명령어 한 줄로 재현하게 한다. 작업 폴더는 `projects/<이름>/`.
 
 1. 평가할 함수를 정한다. 입력 하나(또는 dict/list)를 받아 값을 돌려주는 순수한 함수여야 한다.
-   - rag: `app.py:search`(검색 품질), 필요하면 `ask`
+   - rag: `app.py:search`(검색 품질, 오프라인), 답변 수준은 `app.py:ask`(API 호출)
+   - **파일을 나눈다**: `eval/golden.jsonl`은 pytest(`check.py`)가 오프라인 `search`로 돌리므로 API가 필요한 `ask` 케이스를 넣으면 check.py가 깨진다. 답변 케이스는 `eval/answers.jsonl`에 두고 `--target app.py:ask`로 돌린다.
    - predict: `train.py:fit_and_score` (입력 `{"path":..., "target":...}`, 출력 dict의 `score`)
 2. `eval/golden.jsonl`에 케이스를 쓴다. 최소 구성: 정상 5건 이상 + 엣지 3건 이상 + "답이 없어야 하는" 질문 1건 이상.
    - 형식·검사 종류는 `starters/common/evalkit.py` 상단 설명을 따른다(contains / regex / range / approx / judge).
    - **정답을 코드나 문서에서 그대로 복사해 만들지 않는다**(채점 오염). 도메인 기준으로 직접 쓴다.
+   - **"답이 없어야 하는" 질문**: `not_contains`에 질문의 핵심어를 넣지 않는다(모델이 자기 검색어를 설명하며 인용해 정상 답변이 fail된다). 대신 "근거 없음" 표현을 `regex`로, 출처 파일명을 `not_contains`로 본다. `regex`에 `확인`처럼 흔한 단어를 넣지 않는다.
+   - **코퍼스 크기부터 센다**: 청크가 k의 몇 배 안 되면 적중률은 무엇을 해도 높게 나온다. 청크 수를 먼저 확인하고(`load_chunks`), 문서가 파일당 한두 청크면 "어느 파일인가"만 시험하는 것이므로 그렇게 말한다. 규정·약관처럼 조항 번호를 인용해야 하면 `split_clauses`(제N조 단위 청크)가 자동 적용된다.
 3. 실행: `python projects/<이름>/scripts/eval.py projects/<이름>/eval/golden.jsonl --target <파일>:<함수> --min-pass 0.8`
    - `judge` 케이스는 `--judge`를 붙일 때만 LLM으로 채점한다. **API 비용이 드니 먼저 사용자에게 알린다.**
 4. 실패를 두 종류로 나눈다: ① 코드가 틀림 → 고친다 ② 케이스가 틀림 → 케이스를 고치되 이유를 `docs/decisions.md`에 남긴다. 통과시키려고 기준을 느슨하게 하지 않는다.

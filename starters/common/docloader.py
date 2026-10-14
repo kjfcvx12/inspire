@@ -50,6 +50,24 @@ def split_text(text: str, size: int = 500, overlap: int = 50) -> list[str]:
     return [text[i:i + size] for i in range(0, len(text), step) if text[i:i + size].strip()]
 
 
+def split_clauses(text: str, size: int = 500, overlap: int = 50) -> list[str]:
+    """'제N조'로 시작하는 줄 단위로 자른다(조항 하나 = 청크 하나, 제목 줄은 각 청크 앞에 붙인다).
+    규정·약관처럼 조항 번호를 근거로 인용해야 하는 문서용. 조항 제목이 2개 미만이면 split_text로 되돌린다.
+    조항이 size보다 길면 그 조항만 split_text로 다시 자른다."""
+    parts = re.split(r"(?m)^(?=제\d+조)", text)
+    if len(parts) < 3:  # parts[0]은 머리말, 조항이 2개 이상일 때만 적용
+        return split_text(text, size, overlap)
+    title = parts[0].strip()
+    out: list[str] = []
+    for part in parts[1:]:
+        part = part.strip()
+        if not part:
+            continue
+        body = f"{title}\n{part}" if title else part
+        out += split_text(body, size, overlap) if len(body) > size else [body]
+    return out
+
+
 def unwrap_korean_lines(text: str, ratio: float = 0.8) -> str:
     """PDF 자동 줄바꿈으로 쪼개진 한글 단어를 잇는다. 그 쪽에서 가장 긴 줄의 ratio 이상인 줄이고,
     줄 끝과 다음 줄 첫 글자가 모두 한글일 때만 줄바꿈을 지운다(제목·목록·문단 끝 같은 짧은 줄은 유지)."""
@@ -148,7 +166,7 @@ def load_chunks(docs_dir: str = "data", size: int = 500, overlap: int = 50, ocr:
         try:
             if ext in TEXT_EXT:
                 text = nfc(p.read_text(encoding="utf-8"))
-                got = [(rel, c) for c in split_text(text, size, overlap)]
+                got = [(rel, c) for c in split_clauses(text, size, overlap)]
                 if not got:
                     skipped.append((rel, "빈 파일"))
             elif ext in PDF_EXT:
