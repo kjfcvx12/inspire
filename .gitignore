@@ -5,3 +5,6 @@ __pycache__/
 .streamlit/secrets.toml
 logs/
 *.db
+.playwright-mcp/
+.vscode/
+1.txt

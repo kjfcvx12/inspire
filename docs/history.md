@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 017, 2026-10-14)
+## Current State (cumulative, as of Entry 018, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -16,7 +16,7 @@
 - Local folder `C:\Users\강민구\Desktop\0` is a git repo connected to `https://github.com/kjfcvx12/inspire` (remote `origin`).
 - Only remote branch is `claude/wizardly-gates-yc1p6c` (also remote HEAD); checked out locally with tracking. No `main` branch.
 - Project is an "Interview Kit" for a 2-hour vibe-coding interview (stack and rules in `CLAUDE.md`; skills `/plan`, `/present`, `/demo-ready` in `.claude/skills/`; starters in `starters/predict` and `starters/rag_agent`).
-- `.vscode/` is untracked locally. Nothing committed or pushed by us yet.
+- `.vscode/`, `1.txt` (a local note) and `.playwright-mcp/` are git-ignored. `uv.lock` is committed (Entry 018). Entries 013-018 are committed locally and not pushed.
 
 **Python environment**
 - Conda lives at `C:\ProgramData\anaconda3` and is **not on PATH**. Activate with: `conda activate work` (in Anaconda Prompt), or call `C:\ProgramData\anaconda3\envs\work\python.exe` directly.
@@ -56,6 +56,14 @@
 - `tests/test_textsearch.py` (7 tests, kiwi and bigram paths, empty/symbol-only input, plain-TF-IDF baseline = 0). 39 tests total.
 - Limits: keyword-only (no synonym match; sentence-transformers hybrid not wired); only a 3-document toy corpus, so no accuracy number exists; Streamlit app not run end-to-end.
 
+**Pre-interview verification (Entry 018)**
+- Live API (real key): `check.py --api` PASS; `llm.ask`, prompt caching (2nd identical long-system call read 16,419 tokens from cache), `ask_structured` (pydantic, 1 attempt), `stream_text` all worked against `claude-sonnet-5-5`. Price table in `usage_log.PRICES` matches the official table (Sonnet 5.5 $2/$10, Opus 5.5 $4/$20, Haiku 5.5 $0.10/$0.50, cache read $0.20/$0.20/$0.01, cache write 1.25x).
+- Scaffolded `rag` project run with Streamlit and driven through Playwright MCP (it started without issue): Korean question -> `search` tool call -> grounded answer with source, per-question cost, history sidebar; a fact missing from the document was answered as "not found".
+- Defect found by that run: model text `2~3일` rendered as strikethrough and the `$a ... $b` cost caption rendered as math. Fix: `starters/common/ui.py` `md_safe()` applied in `rag_agent/app.py`; `tests/test_ui.py` (4 tests); re-verified in the browser.
+- Reproducibility: fresh `git clone` + `uv sync` (+ `--extra extras`) passes the harness; a scaffold folder copied outside the repo installs from its `requirements.txt` into a new venv and passes its own `check.py` (19 passed).
+- Config: `git push` removed and `mcp__playwright` added to `.claude/settings.json` allow list; `.gitignore` gained `.vscode/`, `1.txt`, `.playwright-mcp/`.
+- Observed, not changed: scaffold `requirements.txt` has `kiwipiepy` commented out, so a fresh RAG project uses the bigram fallback unless it is enabled (its Korean quality is unmeasured).
+
 **Rehearsal (Entry 010)**
 - Ran the full flow once on a dummy topic (breast-cancer classifier, no API) in a scratch copy of the kit; report in `docs/rehearsal-report.md`. Elapsed ~7 min is AI execution time, not human time (not usable as a 120-min estimate).
 - Both agents were actually invoked: `verifier` found silent acceptance of nonsense inputs; `interviewer` found unreproducible presentation numbers, weak tests, training-row demo samples, and a "0 won" cost claim. A threshold decision made on one small holdout was reversed after CV.
@@ -69,18 +77,24 @@
 - Not verified: the new skills/agents were not invoked yet; `--api` path and real usage logging not run against the live API (no key); possible `max_tokens=1024` truncation with default-on thinking on Sonnet 5.5 is unmeasured (report flags `truncated` calls).
 
 **Open items / caveats**
-- `.env` exists but `ANTHROPIC_API_KEY` is empty/unset (harness WARN). The user must enter the key.
+- `.env` now holds a working `ANTHROPIC_API_KEY` (Entry 018 live checks passed). A scaffolded project folder that is moved elsewhere needs its own `.env` (the dotenv search only finds the kit's `.env` while the folder sits inside the kit).
 - `uv.lock` / `.venv` do not exist; the real environment is conda `work`. `pip install` into `work` was used, so a fresh `uv sync` was not tested with the new deps (unverified).
 - Starters were not actually run end-to-end (need a CSV / API key) — unverified.
 - Runtime choice resolved by convention: commands work in conda `work` or uv `.venv`; no single mandated env.
-- Everything up to Entry 012 is pushed to `origin/claude/wizardly-gates-yc1p6c` (0aa1ede..8aa21ff). Entries 013-016 are committed locally (2 commits ahead of origin before Entry 017); Entry 017 is committed in the wrap-up. Nothing after Entry 012 is pushed. `.vscode/` and `1.txt` stay untracked.
-- Latest harness (Entry 017): `check.py` 4 PASS / 1 WARN (no API key) / 0 FAIL; pytest 39 passed; ruff clean.
-- Not verified: new skills (`/new-project`, `/eval`, `/edge-cases`, `/share-out`) not invoked as slash commands; real `streamlit run` and any live API call (no key) — retry/fallback/caching/streaming/structured output were tested only against a fake client, so real cache hits and `messages.parse` behavior are unconfirmed; Playwright/context7 were not started as MCP servers inside Claude Code (needs a new session + approval, Chrome install assumed); `/share-out` never publishes in tests; `pip install -r requirements.txt` into a fresh env not run.
+- Everything up to Entry 012 is pushed to `origin/claude/wizardly-gates-yc1p6c`. Entries 013-018 are committed locally only; push needs the user to write "클리어 푸시" (`git push` was removed from the allow list in Entry 018, so a permission prompt also appears).
+- Latest harness (Entry 018): kit `check.py --api` 6 PASS / 0 WARN / 0 FAIL, pytest 43 passed, ruff clean. Fresh clone: `uv sync` OK (base: 40 passed + 3 skipped without kiwipiepy; `--extra extras`: 43 passed).
+- Still not verified: the slash-skills `/new-project`, `/eval`, `/edge-cases`, `/share-out` were not invoked as skills (their underlying scripts were run directly); `/share-out` never publishes in tests; a full 120-minute human run-through has not been done; hybrid embedding search, PDF loading and retrieval hit-rate eval are not built; Haiku >100K-token price tier is not modeled in `usage_log.PRICES`.
 - Server-side refusal `fallbacks` (beta) are not enabled; refusals are surfaced as mock fallback instead.
 - Session operation (discussed, nothing built): one writer session per project folder; extra sessions only read (summary) or publish finished, committed artifacts (`/share-out`). Offered but not built: read-only `scripts/status.py` and `docs/sessions.md`. Whether the interview rules allow multiple sessions is unknown.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
 ## Log (newest first)
+
+### Entry 018 — 2026-10-14 — Pre-interview verification pass
+- User asked to proceed with the recommended order (live API, rehearsal run, fresh-environment reproduction, config cleanup).
+- Live API paths verified; price table verified; scaffolded RAG app run in the browser; markdown rendering defect found and fixed with `md_safe()` + tests; fresh clone and standalone scaffold reproduced; permissions and gitignore tidied; `uv.lock` committed.
+- Mistake caught: a test file written through the shell lost a backslash and failed; rewritten with the Write tool.
+- Open: push (needs "클리어 푸시"), `/new-project` etc. not invoked as slash skills, kiwipiepy not enabled by default in scaffolds, no 120-minute human rehearsal.
 
 ### Entry 017 — 2026-10-14 — Deep-learning packages and Korean retrieval fix
 - Answered "what to install with PyTorch"; installed torch/torchvision/torchaudio/transformers/sentence-transformers/accelerate/datasets/tqdm/pillow into conda `work` (CPU build) and added them to `pyproject.toml` extras (16 entries; dry-run resolve clean). Reported measured sizes.
