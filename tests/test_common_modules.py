@@ -269,6 +269,26 @@ def test_run_eval_counts_errors_and_skips_judge(tmp_path):
     assert {r.id: r.status for r in rep2.results}["j"] == "pass"
 
 
+def test_run_eval_does_not_pass_mock_fallbacks_unless_allowed(tmp_path):
+    g = tmp_path / "g.jsonl"
+    g.write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in [
+        {"id": "zero", "input": "a", "expect": {"key": "n", "equals": 0}},
+        {"id": "zero-ok", "input": "a", "expect": {"key": "n", "equals": 0, "allow_mock": True}},
+        {"id": "text", "input": "b", "expect": {"contains": ["답"]}},
+    ]), encoding="utf-8")
+    cases = evalkit.load_golden(g)
+
+    def fn(x):
+        return {"n": 0, "mock": True} if x == "a" else "(mock) 답: API 실패"
+
+    st = {r.id: (r.status, r.failures) for r in evalkit.run_eval(fn, cases).results}
+    assert st["zero"][0] == "fail" and "mock" in st["zero"][1][0]
+    assert st["zero-ok"][0] == "pass"
+    assert st["text"][0] == "fail"
+    real = evalkit.run_eval(lambda x: {"n": 0, "mock": False}, cases[:1]).results[0]
+    assert real.status == "pass"  # 실제 응답은 영향 없음
+
+
 def test_load_golden_validates(tmp_path):
     p = tmp_path / "g.jsonl"
     p.write_text('{"input": "x"}\n', encoding="utf-8")

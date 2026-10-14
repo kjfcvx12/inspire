@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 027, 2026-10-14)
+## Current State (cumulative, as of Entry 028, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -63,6 +63,13 @@
 - `docloader` OCR hardening: prompt asks for `[판독불가]` / `[다른 문자]` markers instead of guessing; markers are stripped before indexing; if unreadable marks exceed 25% of (marks + words) a reliability warning is added to `skipped`; OCR pages with fewer than 6 content characters (page numbers) count as missing; the OCR cache key now includes the prompt.
 - `/share-out` end-to-end test: pre-publish safety review, then one Notion private draft (`notion-create-pages`, draft mode) containing the check summary; re-fetched and rendered correctly. No secrets or personal paths in the content. Drive and Canva were not exercised. The test page remains in the user's Notion as a private draft.
 - Downloaded PDFs/images were kept outside the repo in a scratch folder and read with `python -I`; nothing from them was committed.
+
+**Presentation step, interviewer and verifier agents, mock-pass fix (Entry 028)**
+- Ran `/present` on the rehearsal project (`docs/presentation.md` 9 sections, `docs/evidence.md` with a reproduction command per number, Mermaid diagram, 3-minute script) and invoked the `interviewer` and `verifier` agents for real.
+- Both agents independently found the same defect: when the API is down the fallback result (`mock: True`, `n: 0`) made every "expects 0 items" golden case and the injection range case PASS (4 of 12 for free; verifier reproduced it with a stub). Kit fix in `starters/common/evalkit.py`: `run_eval` marks a mock output (dict `mock is True`, object `.mock is True`, or a string starting with "(mock)") as fail unless the case sets `expect.allow_mock`. New kit test `test_run_eval_does_not_pass_mock_fallbacks_unless_allowed`; project test `test_api_outage_does_not_pass_the_golden_set` (0 passes during an outage). The scaffold copy is updated for newly created projects only (existing project folders keep their old copy).
+- Other findings (recorded as limits, not fixed): the same person appears under two names, co-owners are merged into one string, a zero-width-only input is not treated as empty, titles can land in `owner`, closing-tag and field-manipulation injections are untested; the mutation result is not stable (minimal version 9/12 in an ad hoc run, 10/12 in the committed script `scripts/mutation_check.py`); the cost report's 2 `max_tokens` rows (input 1 / output 1) are most likely from the verifier's fake-client probe (inferred from timestamps and sizes, not confirmed).
+- Verifier result on the claims: check.py 6 PASS, 24 tests (now 25), 12/12 live golden, blank/oversize rejected without an API call, fallback labelled "(mock)" - all PASS; real-API probes limited to 15 calls. Rehearsal project totals: 124 calls, $0.1597 (dev cost, includes the verifier's calls).
+- Not exercised yet: `/plan`, `/new-project` (used the script directly), `/timecheck`, `/demo-ready`.
 
 **Abridged rehearsal on a `blank` topic (Entry 027)**
 - Topic chosen by me as a default: "meeting notes -> action items extractor" (Streamlit, `common.structured`, golden set), built in a scratch scaffold with the real key. Wall time 14:20:31 -> 14:25:19 (~5 min of AI execution time; not a human 120-minute estimate). `check.py` 6 PASS, 24 offline tests, golden set 12/12, 59 API calls = $0.0635 (dev cost incl. evals and mutations; runtime cost per extraction ~ $0.001).
@@ -149,6 +156,11 @@
 - Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 028 — 2026-10-14 — /present on the rehearsal project, independent agents, mock-pass fix
+- User said "y" to running the presentation step on the same topic. Invoked `/present`, `interviewer` and `verifier`; fixed the defect both found in the kit's `evalkit`; added the mutation check as a committed script in the rehearsal project (not in the kit).
+- Mistakes caught: I wrote three `decisions.md` timestamps from memory (14:30/14:33/14:34) and replaced them with "time not recorded, between 14:25 and 14:35" (the rule is to use real times only); my new evalkit docstring line broke the scaffold ruff tests (E501 with Hangul) until shortened; the mutation script gave 10/12 while my earlier ad hoc run gave 9/12, so I report a range.
+- Open: scratch rehearsal project is not committed; presentation script length (~600 characters) is an estimate for 3 minutes, not timed by a person; push needs "클리어 푸시".
 
 ### Entry 027 — 2026-10-14 — Abridged rehearsal (meeting-notes action items)
 - User asked for the 30-40 minute abridged rehearsal. I stated a plan (phases, scratch location, measurement), chose the topic, and ran design -> build -> golden set -> mutation checks -> browser check -> decision log -> harness. Details and numbers in Current State.

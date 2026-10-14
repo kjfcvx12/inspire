@@ -9,6 +9,7 @@ expect 키(모두 만족해야 통과, 문자열 비교는 대소문자 무시):
   regex      정규식이 검색됨        / equals   값이 같음 / any_of  후보 중 하나와 같음
   range      [lo, hi] 안에 있음      / approx   [값, 허용오차]
   judge      채점 기준 문장 → LLM 판정(judge 함수가 있을 때만. 없으면 '건너뜀'이며 통과율에서 제외)
+  allow_mock true면 mock 폴백 결과도 허용(기본은 fail: API 장애 때 '0건' 기대값이 공짜로 통과하는 것을 막음)
 """
 import json
 import re
@@ -128,6 +129,15 @@ def _call(fn: Callable, inp: Any) -> Any:
     return fn(inp)
 
 
+def _is_mock(out: Any) -> bool:
+    """폴백 결과 판별: dict의 mock=True, 객체의 .mock=True, 또는 '(mock)'으로 시작하는 문자열."""
+    if isinstance(out, dict):
+        return out.get("mock") is True
+    if isinstance(out, str):
+        return out.lstrip().startswith("(mock)")
+    return getattr(out, "mock", False) is True
+
+
 def run_eval(fn: Callable, cases: List[Case], judge: Optional[Judge] = None) -> Report:
     results = []
     for c in cases:
@@ -139,6 +149,8 @@ def run_eval(fn: Callable, cases: List[Case], judge: Optional[Judge] = None) -> 
                                   seconds=time.perf_counter() - t0))
             continue
         fails = check(out, c.expect)
+        if _is_mock(out) and not c.expect.get("allow_mock"):  # API 실패 폴백이 '0건 정답' 등을 공짜로 통과시키지 않게
+            fails.insert(0, "mock 폴백 결과(API 실패)라 통과로 세지 않음")
         status = "pass" if not fails else "fail"
         if "judge" in c.expect:
             if judge is None:
