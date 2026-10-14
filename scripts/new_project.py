@@ -135,7 +135,14 @@ docker run --rm -p 8501:8501 --env-file .env demo       # http://localhost:8501 
 docker run --rm demo python -m pytest -q                # 컨테이너 안 테스트
 ```
 - `.dockerignore`가 `.env`를 이미지에서 뺀다. 키는 `--env-file`/`-e`로 실행 시에만 주입한다.
-- 임베딩(`SEARCH_MODE=hybrid`)용 sentence-transformers는 이미지에 없다. 컨테이너에서는 `bm25`를 쓴다.
+- 임베딩(`SEARCH_MODE=hybrid`)용 sentence-transformers는 이미지에 없다. 없으면 조용히 `bm25`로 동작한다.
+  hybrid가 필요하면 Dockerfile의 `pip install` 뒤에 아래를 넣는다
+  (빌드 약 2분, 이미지 약 3.6GB, 모델이 이미지에 들어가 오프라인에서도 동작).
+  ```
+  RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+  RUN pip install --no-cache-dir sentence-transformers
+  RUN python -c "from sentence_transformers import SentenceTransformer as S; S('intfloat/multilingual-e5-small')"
+  ```
 - 15분 안에 안 되면 포기하고 로컬 실행(`{run}`)으로 간다.
 """
 DECISIONS = (

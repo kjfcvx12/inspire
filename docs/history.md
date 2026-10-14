@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 025, 2026-10-14)
+## Current State (cumulative, as of Entry 026, 2026-10-14)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -69,6 +69,12 @@
 - Scratch test (RAG scaffold, `python:3.11-slim`, not committed): cold build 94 s, image 1.43 GB, `/_stcore/health` ok, page 200, no key file in the image, `pytest -q` inside the container 23 passed, an injected `-e ANTHROPIC_API_KEY` is visible and wins over the file (`load_dotenv(override=False)`). Not tested: real API call from the container, `--env-file` with a real key, `SEARCH_MODE=hybrid` (sentence-transformers is not in the image; use `bm25`).
 - `scripts/new_project.py --docker` (opt-in, default off) writes `Dockerfile` (Streamlit CMD on 8501; `predict` runs `train.py`), `.dockerignore` (key file, `.env.*` except `.env.example`, `logs/`, `*.db`, venv, caches) and a README "Docker" section. 5 new tests in `tests/test_new_project.py`: files only with the flag, dockerignore order and CMD per kind, scaffold passes its own `check.py`, and an opt-in (`RUN_DOCKER_TESTS=1`) real build asserting the image holds only `.env.example` even when the folder has a key file, plus `pytest` inside the image (passed, ~64 s for the 6 docker tests).
 - Docker is not needed for the interview itself (local `streamlit run` is the default path); it is an optional "runs anywhere" demo. First build must be done beforehand to warm the cache.
+- Follow-up tests of the earlier unknowns (Entry 026), all in a scratch scaffold made with `--docker` and a copied key file; the driver scripts masked the key value in all output and were not committed:
+  - Real key via `--env-file`: `ask()` in the container answered from `data/sample.md` with a source, not mock; 2 calls = $0.0044 (1,113 in / 222 out), recorded in the container's `usage.jsonl` and shown by `cost_report.py`. Without a key the container returned `(mock) ...` (rc 0, no crash).
+  - `SEARCH_MODE=hybrid` on the plain image: loads, `index mode: bm25` (silent fallback), `ask()` works. A one-chunk sample doc cannot show a hybrid difference.
+  - Real hybrid image (extra layers: CPU torch from `download.pytorch.org/whl/cpu`, sentence-transformers, model baked in with a build-time load): build 106 s, image 3.62 GB. With `--network none`, `eval_retrieval.py` on `data/demo_faq` + `eval/retrieval_demo.jsonl` gave bm25 hit@3 73% / MRR 0.73 and hybrid 100% / 0.88 (same as the host numbers), 13 s run; app `ask()` reported `index mode: hybrid` and answered via the real API. Recipe added to the generated README's Docker section (test asserts it is there).
+  - Docker Desktop does not autostart (`com.docker.service` Manual); this is a setting, not a test, and was left as is.
+  - Test images (`dockertest`, `dkreal`, `dkhybrid`) were removed afterwards; only `hello-world` remains.
 
 **Start-flow dry run, mock-label fix, Docker Desktop (Entry 023)**
 - Dry run of the interview start flow on throw-away scaffolds (scratch folder, not in the repo): `new_project.py --type blank` -> `start.py` -> `check.py` gave 6 PASS / 0 WARN / 0 FAIL; without a key `check.py` gives a WARN ("mock fallback"), not a FAIL. `python` on PATH is conda `work` (3.12.15).
@@ -133,9 +139,14 @@
 - Session operation (discussed, nothing built): one writer session per project folder; extra sessions only read (summary) or publish finished, committed artifacts (`/share-out`). Offered but not built: read-only `scripts/status.py` and `docs/sessions.md`. Whether the interview rules allow multiple sessions is unknown.
 - Tool note: the sandbox blocked a `Test-Path` on `.env`; do not rely on checking that path directly.
 
-- Entry 025: Docker engine check is closed (works after reboot). Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); containerized run with a real key/API call and hybrid search untested; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text. Test image `dockertest` (1.43 GB) may still be in the local Docker store (`docker rmi dockertest`).
+- Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the container was only tested through `ask()`/`eval_retrieval.py` inside it, not through the Streamlit page in a browser; the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 026 — 2026-10-14 — Container tests of the unverified items (real key, hybrid)
+- User asked to test the items left unverified in Entry 025. Ran: real-key container run, mock path, `SEARCH_MODE=hybrid` without the model, and a real hybrid image offline (results in Current State under Entry 025). Added the hybrid recipe to the `--docker` README text and a test assertion for it.
+- Mistakes caught: a first README line was too long for ruff (E501, twice); the README's model-load command was shortened with an import alias after the tested one, so the exact shortened line itself was not rebuilt (same import, only aliased). The env-file guard again required putting the key-file path in script files (written with the Write tool) rather than shell commands; the key was masked in output and never displayed.
+- Open: see Current State (browser check of the containerized page, autostart, rehearsals); not pushed.
 
 ### Entry 025 — 2026-10-14 — Docker verified after reboot, `--docker` scaffold option
 - User said the reboot was done, then asked how Docker would be used "in the test" (clarified: a trial run, not interview day), then "둘다 진행" (add a `--docker` option and record the result).

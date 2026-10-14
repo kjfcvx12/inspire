@@ -106,7 +106,8 @@ def test_docker_files_only_with_flag(tmp_path):
     proj = new_project.create("b", "rag", tmp_path, copy_env=False, docker=True)
     df = (proj / "Dockerfile").read_text(encoding="utf-8")
     assert "streamlit" in df and "--server.address=0.0.0.0" in df and "EXPOSE 8501" in df
-    assert "## Docker" in (proj / "README.md").read_text(encoding="utf-8")
+    readme = (proj / "README.md").read_text(encoding="utf-8")
+    assert "## Docker" in readme and "whl/cpu" in readme and "sentence-transformers" in readme
     assert "## Docker" not in (tmp_path / "a" / "README.md").read_text(encoding="utf-8")
 
 
