@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 030, 2026-10-14)
+## Current State (cumulative, as of Entry 031, 2026-10-15)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -156,6 +156,12 @@
 - Cost tracking verified with a fake Anthropic client (no real API call): `ask()` → 2 rows logged, summary $0.0128 for 2×(1200 in/400 out) matches hand calculation, `cost_report.py` output correct, empty-log message OK. Harness now 3 PASS / 1 WARN / 0 FAIL, pytest 5 passed.
 - Not verified: the new skills/agents were not invoked yet; `--api` path and real usage logging not run against the live API (no key); possible `max_tokens=1024` truncation with default-on thinking on Sonnet 5.5 is unmeasured (report flags `truncated` calls).
 
+**Interview logistics (Entry 031, discussion only, no code change)**
+- Interview facts from the user: Saturday 2026-10-17 14:00, hackathon-style, individual (not team), topic revealed on the day, data provision unknown. The kit needs no structural change; the day-of branch (tabular data -> `predict`, documents -> `rag`, none -> wiki corpus via `fetch_wiki_corpus.py` or `blank`) is already covered by `/plan`.
+- Decision: no custom MCP server in the kit (scripts and skills already do the same work deterministically; extra process adds failure points inside 2 hours). Only worth a tiny optional server inside a project folder if the topic itself is about agents/tools.
+- Claude Code usage: Max 5x plan, weekly limit 60% used on 2026-10-15, weekly reset after the interview, so the remaining ~40% must cover it. Plan: avoid rehearsals and subagent/Workflow use before Saturday, check `/usage` (5-hour window too) right before the interview, keep contexts short; the user will enable and cap extra usage in advance. App API cost is billed separately via the API key. The per-session % consumption was not measured, so sufficiency is an estimate (unverified).
+- A project memory (`project-interview-saturday-usage-limit`) records these facts outside the repo.
+
 **Open items / caveats**
 - `.env` now holds a working `ANTHROPIC_API_KEY` (Entry 018 live checks passed). A scaffolded project folder that is moved elsewhere needs its own `.env` (the dotenv search only finds the kit's `.env` while the folder sits inside the kit).
 - `uv.lock` / `.venv` do not exist; the real environment is conda `work`. `pip install` into `work` was used, so a fresh `uv sync` was not tested with the new deps (unverified).
@@ -172,6 +178,11 @@
 - Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 031 — 2026-10-15 — Interview logistics and usage-limit planning (no code change)
+- User asked whether to keep a custom MCP (answer: no, reasons in Current State), said the test is hackathon-style, individual, topic on the day, data unknown, then worried that 60% weekly usage might not cover Saturday 14:00. I could not see usage or prices, so I gave a decision rule and a conservative budget instead of a number; the user will check `/usage` and enable capped extra usage.
+- Mistakes caught: none in code; I stated a "1 to 1.5 sessions" buffer as an estimate and labelled it unmeasured.
+- Open: per-session `/usage` consumption unmeasured; extra-usage setting and payment method unverified by me; human 120-minute run; push requested ("클리어 푸시") together with the earlier unpushed commits.
 
 ### Entry 030 — 2026-10-14 — Skills invoked as skills, `rag` rehearsal, clause-level chunking
 - User said "순서대로 진행" for the list (1 interviewer message draft, 2 skill calls, 3 `rag` rehearsal, 4 day-of checklist). Step 1 was a draft message only (needs the user's reply: scope of "setup"); steps 2-3 are in Current State. Step 4: a checklist already existed in `docs/setup-summary.md` section 6 but was stale (no `/new-project`, "skills never invoked", "all pushed"), so that section and the file map, torch/Docker rows, test count and open items were rewritten instead of adding a new document; the checklist now has branches for the interviewer's answer (environment only / DB+server / GPU topic).
