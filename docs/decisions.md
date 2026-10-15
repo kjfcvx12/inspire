@@ -28,6 +28,7 @@
 | `common.llm` 경유 호출 | anthropic SDK 직접 호출 | [기록] 재시도·mock 폴백·캐싱·비용 기록을 한 곳에서 처리. API 실패 시 mock 폴백은 CLAUDE.md 규칙 |
 | `structured`(pydantic 검증 + 재시도) | 강제 `tool_choice` | [기록] Sonnet 5.5는 강제 `tool_choice`가 400 |
 | `usage_log` + `cost_report` | 추정 비용 | [기록] 발표 수치는 재현 가능해야 함. 실제 호출 로그만 근거로 삼음 |
+| Langfuse는 쓰지 않음 (2026-10-15 18:21) | LLM 호출 트레이싱 연동 | [판단] 사용자 결정. 비용은 `usage_log`, 품질은 `evalkit`이 이미 맡고, 호출마다 외부 전송하면 실패점·데이터 반출이 늘어남. `.env`의 `LANGFUSE_*`는 비워 둠(`check_services.py`는 SKIP 처리) |
 | 가격표 공식 문서 대조 | 기억 기반 단가 | [기록] 2026-10-14 공식 표와 일치 확인 |
 
 ### 3. 환경·의존성
