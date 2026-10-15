@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 031, 2026-10-15)
+## Current State (cumulative, as of Entry 032, 2026-10-15)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -27,6 +27,10 @@
 - Deep-learning stack (Entry 017): installed into `work` and added to `pyproject.toml` `extras`: torch 2.14.1 (CPU build; `cuda: False`), torchvision 0.29.1, torchaudio 2.11.0, transformers 5.19.0, sentence-transformers 6.1.0, accelerate 1.15.0, datasets 5.1.0, tqdm, pillow. `uv pip check` clean; torch ≈ 474 MB in site-packages, uv cache ≈ 596 MB. Suggested but not installed: faiss-cpu, pypdf, optuna, xgboost, duckdb, python-multipart, ipykernel (user did not answer).
 - `pyproject.toml` has `[tool.ruff]` (line-length 120, rules E/F/W). `scripts/check.py` runs ruff as a WARN-level step (lint never blocks the flow).
 - System-wide: GitHub CLI `gh` 2.102.0 (winget; not logged in), git, Node.js, VS Code. System Python is 3.14.3 (unused).
+
+**Hardware limits and Colab fallback (Entry 032)**
+- This PC: RAM 15.2 GB (about 9 GB free), RTX 3050 Ti 4 GB VRAM, Ryzen 5 6600H; torch is the CPU build. LLM work goes through the Anthropic API; only e5-small embeddings run locally. No paid Colab, no external GPU server by default.
+- Free Colab is an emergency exit only for topics that truly need deep-learning training: T4 connected, anthropic install, API call via secrets, file upload/download all passed (user-reported, 2026-10-15). Each new Colab session must `!pip -q install anthropic` first and download results at once. Colab API calls are not in `logs/usage.jsonl`. Free GPU quota cannot be seen; do a 1-minute `torch.cuda.is_available()` check before the interview and fall back to API/CPU if it fails. Recorded in `docs/decisions.md` section 5.
 
 **Interview kit additions (Entry 007)**
 - Harness: `scripts/check.py` (compile + pytest + env/secret checks; `--api` for a live ping; PASS/WARN/FAIL, exit 1 on FAIL; never prints key values) and `tests/test_smoke.py` (2 tests).
@@ -178,6 +182,13 @@
 - Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 032 — 2026-10-15 — External GPU question: local limits, Colab free T4 fallback checked (docs only)
+- User asked whether to set up something external because RAM/GPU may be short for models, then whether to pay for Colab. Checked this PC with `Get-CimInstance`: RAM 15.2 GB (about 9 GB free), RTX 3050 Ti Laptop 4 GB VRAM, Ryzen 5 6600H 12 threads; torch in `work` is the CPU build. Answer: no external setup and no paid Colab; the kit runs the LLM through the Anthropic API and only e5-small embeddings locally (CPU, BM25 fallback).
+- User tested free Colab with my cells: T4 connected (`torch 2.11.0+cu130`, `cuda: True`, Tesla T4), `pip install anthropic` ok (1.14.0), `claude-haiku-5-5` call via Colab secrets returned "OK" (17 in / 4 out tokens), file upload and download both passed. All results are user-reported; I could not run Colab myself.
+- Mistakes caught: test 3 first failed with `ModuleNotFoundError` because the Colab session had restarted and pip installs were gone; the fix is to reinstall at the start of each session. The Colab call is not in `logs/usage.jsonl`, so it is not used for presentation cost numbers.
+- Recorded two rows in `docs/decisions.md` section 5 (Colab policy 16:38; quota cannot be seen, check on the day 17:58). Deleted the temporary `2.txt` (an error paste, untracked).
+- Open: free GPU quota on the interview day is unverifiable in advance (no remaining-time display on the free plan, from general knowledge, official docs not rechecked); a CUDA build of torch for this PC was not installed (3.14 compatibility unchecked).
 
 ### Entry 031 — 2026-10-15 — Interview logistics and usage-limit planning (no code change)
 - User asked whether to keep a custom MCP (answer: no, reasons in Current State), said the test is hackathon-style, individual, topic on the day, data unknown, then worried that 60% weekly usage might not cover Saturday 14:00. I could not see usage or prices, so I gave a decision rule and a conservative budget instead of a number; the user will check `/usage` and enable capped extra usage.
