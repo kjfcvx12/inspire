@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 032, 2026-10-15)
+## Current State (cumulative, as of Entry 033, 2026-10-15)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -31,6 +31,10 @@
 **Hardware limits and Colab fallback (Entry 032)**
 - This PC: RAM 15.2 GB (about 9 GB free), RTX 3050 Ti 4 GB VRAM, Ryzen 5 6600H; torch is the CPU build. LLM work goes through the Anthropic API; only e5-small embeddings run locally. No paid Colab, no external GPU server by default.
 - Free Colab is an emergency exit only for topics that truly need deep-learning training: T4 connected, anthropic install, API call via secrets, file upload/download all passed (user-reported, 2026-10-15). Each new Colab session must `!pip -q install anthropic` first and download results at once. Colab API calls are not in `logs/usage.jsonl`. Free GPU quota cannot be seen; do a 1-minute `torch.cuda.is_available()` check before the interview and fall back to API/CPU if it fails. Recorded in `docs/decisions.md` section 5.
+
+**Optional services (Entry 033)**
+- Default DB is SQLite. Supabase is an optional remote DB: the user filled `SUPABASE_URL`/`SUPABASE_KEY` (publishable/anon key, Data API enabled) in the kit `.env`; `python scripts/check_services.py` (read-only, prints no keys) reported Supabase PASS. Nothing in the kit reads these variables yet (connection code is added only if the topic needs it). Scaffolded project folders copy `.env` at creation, so earlier folders need the values added by hand. No AWS pre-setup. Free Supabase projects pause after a week of inactivity: check before the interview.
+- Langfuse is not used (decision logged, `LANGFUSE_*` left empty, check script SKIPs it).
 
 **Interview kit additions (Entry 007)**
 - Harness: `scripts/check.py` (compile + pytest + env/secret checks; `--api` for a live ping; PASS/WARN/FAIL, exit 1 on FAIL; never prints key values) and `tests/test_smoke.py` (2 tests).
@@ -182,6 +186,13 @@
 - Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 033 — 2026-10-15 — Optional services: Supabase connectivity check, Langfuse dropped
+- User asked why Langfuse/Supabase are used and whether to use Supabase or set up AWS for tests. Found that no kit code reads `LANGFUSE_*`/`SUPABASE_*` (only `.env.example` and docs), so filling `.env` changes nothing until connection code is written. Recommendation given: SQLite by default, Supabase if a remote/multi-user DB is needed, no AWS pre-setup (2-hour limit; IAM/network setup is the usual delay; AWS pricing/free-tier not rechecked).
+- User enabled the Supabase Data API and filled `SUPABASE_URL`/`SUPABASE_KEY` in `.env` themself (I never read `.env`; the hook blocks it). Added `scripts/check_services.py` (read-only: Langfuse `auth_check`, Supabase `GET /rest/v1/<missing table>` where `PGRST205` means reachable and key accepted; never prints keys or bodies; empty values are SKIP). Result: Supabase PASS, Langfuse SKIP (empty). RLS policies and real reads/writes were not tested.
+- User decided not to use Langfuse; logged in `docs/decisions.md` section 2 (18:21).
+- Mistakes caught: my first `check_services.py` print line exceeded ruff's 120-char limit (fixed); one no-op `Edit` call on `decisions.md` failed because the anchor text was wrong (no change made).
+- Open: Supabase free project may pause after a week without use, so re-check its status the day before the interview; the `supabase-py` client path (as opposed to the raw REST check) was not exercised; no table, RLS policy, or write test exists.
 
 ### Entry 032 — 2026-10-15 — External GPU question: local limits, Colab free T4 fallback checked (docs only)
 - User asked whether to set up something external because RAM/GPU may be short for models, then whether to pay for Colab. Checked this PC with `Get-CimInstance`: RAM 15.2 GB (about 9 GB free), RTX 3050 Ti Laptop 4 GB VRAM, Ryzen 5 6600H 12 threads; torch in `work` is the CPU build. Answer: no external setup and no paid Colab; the kit runs the LLM through the Anthropic API and only e5-small embeddings locally (CPU, BM25 fallback).
