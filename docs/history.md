@@ -6,7 +6,7 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 033, 2026-10-15)
+## Current State (cumulative, as of Entry 034, 2026-10-16)
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -31,6 +31,9 @@
 **Hardware limits and Colab fallback (Entry 032)**
 - This PC: RAM 15.2 GB (about 9 GB free), RTX 3050 Ti 4 GB VRAM, Ryzen 5 6600H; torch is the CPU build. LLM work goes through the Anthropic API; only e5-small embeddings run locally. No paid Colab, no external GPU server by default.
 - Free Colab is an emergency exit only for topics that truly need deep-learning training: T4 connected, anthropic install, API call via secrets, file upload/download all passed (user-reported, 2026-10-15). Each new Colab session must `!pip -q install anthropic` first and download results at once. Colab API calls are not in `logs/usage.jsonl`. Free GPU quota cannot be seen; do a 1-minute `torch.cuda.is_available()` check before the interview and fall back to API/CPU if it fails. Recorded in `docs/decisions.md` section 5.
+
+**Interview-day guides (Entry 034)**
+- `docs/colab-guide.md` (Colab usage; manual in browser, no MCP) and `docs/topic-map.md` (likely topics #1,2,3,4,6 from `2.md` → `rag`/`predict` starter, mock-boundary defense wording, day-of start prompt) exist. `CLAUDE.md` loop rule adds "3 workaround strategies" and "key Traceback + last 20 log lines". Colab T4 check passed on 2026-10-16 (user-reported); terminate the session afterwards. A throwaway scaffold's `check.py` gave 6 PASS. Rejected from `1.md`/`2.md`: per-milestone Proceed approval, forced audit comments, `random` probabilities. Open: no synthetic-data helper for predict topics; Supabase variable copy unverified.
 
 **Optional services (Entry 033)**
 - Default DB is SQLite. Supabase is an optional remote DB: the user filled `SUPABASE_URL`/`SUPABASE_KEY` (publishable/anon key, Data API enabled) in the kit `.env`; `python scripts/check_services.py` (read-only, prints no keys) reported Supabase PASS. Nothing in the kit reads these variables yet (connection code is added only if the topic needs it). Scaffolded project folders copy `.env` at creation, so earlier folders need the values added by hand. No AWS pre-setup. Free Supabase projects pause after a week of inactivity: check before the interview.
@@ -186,6 +189,14 @@
 - Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 034 — 2026-10-16 — Reviewed 1.md/2.md guides, added Colab guide and topic map
+- User asked to check `1.md` (general 2-hour vibe-coding strategy) and `2.md` (hackathon-style guide with five company topics #1,2,3,4,6; #5 absent). Compared with `CLAUDE.md`: loop limit, MVP-first, mock fallback, eval, Streamlit starters already covered. Rejected from the guides: per-milestone "Proceed" approval (conflicts with the ask-only-direction rule), forced `[AI Security Audit]` comments (noise), and the template's `random.randint` probability (not defensible; reproducible numbers required).
+- Added `docs/colab-guide.md` (day-before 1-minute T4 check, per-session start cell with Colab secrets, upload/download, when to use Colab; Colab is manual in the browser, no MCP link exists or was verified) and `docs/topic-map.md` (topic → starter type for the five topics, mock-boundary defense wording, day-of start prompt). `CLAUDE.md` loop rule now also says: propose 3 workaround strategies on repeated failure, feed only the key Traceback and last 20 log lines into context.
+- Verified: scaffolded a throwaway `probe` project (predict) into the scratchpad; its own `check.py` gave 6 PASS / 0 WARN / 0 FAIL and `.env` was copied. Whether the Supabase variables were copied was not verified (`.env` reads are blocked by the hook); run `python scripts/check_services.py` after creating a project.
+- User ran the Colab check: `torch.cuda.is_available()` printed `True`, Tesla T4 (user-reported, 2026-10-16). It proves only that quota existed on that day; session should be terminated afterwards.
+- Declined to enhance the harness/loop further (already complete; interview is 2026-10-17 14:00 and weekly usage is limited). Offered options (rehearsal, interviewer Q&A, synthetic-data helper); user chose to wrap up.
+- Open: no synthetic-data helper exists for predict topics (#4, #6 would need data generated on the day); Supabase variable copy into new project folders unverified; free Colab quota on the interview day still unverifiable.
 
 ### Entry 033 — 2026-10-15 — Optional services: Supabase connectivity check, Langfuse dropped
 - User asked why Langfuse/Supabase are used and whether to use Supabase or set up AWS for tests. Found that no kit code reads `LANGFUSE_*`/`SUPABASE_*` (only `.env.example` and docs), so filling `.env` changes nothing until connection code is written. Recommendation given: SQLite by default, Supabase if a remote/multi-user DB is needed, no AWS pre-setup (2-hour limit; IAM/network setup is the usual delay; AWS pricing/free-tier not rechecked).

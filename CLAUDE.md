@@ -37,7 +37,7 @@ Python 3.11 · uv · FastAPI/Streamlit · scikit-learn · SQLite(또는 Supabase
 - 흐름: `/plan` → `/new-project`(작업 폴더) → `/harness`(설계 단계) → `/build-loop`(구현 반복) → `/checkpoint`(20분마다) → `/timecheck`(수시) → `/eval`·`/edge-cases`(검증) → `/present` → `/demo-ready` (요청 시 `/share-out`)
 - 공통 모듈(`starters/common/`, 작업 폴더에 복사됨): `llm`(호출·재시도·mock 폴백·캐싱·스트리밍·비용 기록), `structured`(pydantic 구조화 출력), `db`(SQLite), `evalkit`(골든셋 평가), `edgecases`(엣지 입력), `textsearch`(한국어 BM25), `docloader`(txt·md·pdf 청크. 스캔본은 `PDF_OCR=claude`로 Claude 비전 OCR, API 비용 발생), `embedsearch`(하이브리드 검색, `SEARCH_MODE=hybrid`), `retrieval_eval`(검색 적중률), `envload`(프로젝트 `.env`), `ui`(`md_safe`: 출력의 `~`·`$` 이스케이프). LLM 호출은 anthropic을 직접 쓰지 말고 `common.llm`을 거친다. Sonnet 5.5는 강제 `tool_choice`가 400이므로 구조화 출력은 `structured`를 쓴다.
 - MCP(`.mcp.json`, 버전 고정): `playwright`(데모 화면 확인), `context7`(라이브러리 문서). Notion·Drive·Canva는 계정 커넥터로 연결되어 있고 `/share-out`으로만 쓴다(게시 전 확인).
-- 루프 엔지니어링: 완료 조건(실행 가능한 검사) → 작게 구현 → 실행 → 검증 → 수정. 같은 증상 3회 실패 또는 15분이면 접근을 바꾼다.
+- 루프 엔지니어링: 완료 조건(실행 가능한 검사) → 작게 구현 → 실행 → 검증 → 수정. 같은 증상 3회 실패 또는 15분이면 접근을 바꾼다(우회 전략 3가지 제안). 에러 로그는 핵심 Traceback과 마지막 20줄만 컨텍스트에 넣는다.
 - 하네스 엔지니어링: 모델 바깥의 안전장치(`scripts/check.py`, `tests/`, 골든 입력, mock 폴백, 반복 한도, 권한)를 먼저 만든다.
 - 에이전트(`.claude/agents/`): `verifier`(독립 검증, 코드 수정 안 함), `interviewer`(면접관 역할 예상 질문)
 
