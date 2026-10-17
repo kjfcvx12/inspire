@@ -225,6 +225,25 @@ def tab_basis(q):
                  width="stretch", hide_index=True)
 
 
+def _edit_problems(team, modules, delivs):
+    """계산하기 전에 흔한 입력 실수를 쉬운 말로 알려 준다(영어 검증 오류 대신)."""
+    problems = []
+    if not any(team.values()):
+        problems.append("투입 인원이 모두 0명입니다. 역할별 인원을 합쳐 1명 이상으로 입력해 주세요.")
+    if not modules:
+        problems.append("단계를 하나 이상 선택해 주세요.")
+    if not delivs:
+        problems.append("산출물을 하나 이상 선택해 주세요.")
+    return problems
+
+
+def _plain_error(e):
+    """pydantic 검증 오류에서 사람이 읽을 문장만 꺼낸다('Value error, ' 같은 군더더기 제거)."""
+    if hasattr(e, "errors"):
+        return "; ".join(x["msg"].removeprefix("Value error, ") for x in e.errors())[:200]
+    return str(e)[:200]
+
+
 def tab_edit(res):
     first = res.quotes[0].request
     st.caption("에이전트가 요청을 이렇게 이해했습니다. 고쳐서 다시 계산할 수 있습니다.")
@@ -241,6 +260,10 @@ def tab_edit(res):
         st.markdown(f"발주: {md_safe(first.client)}" + (f" · 신규 항목 :orange-badge[LLM 추정] {md_safe(extras)}" if extras
                                                      else " · 신규 항목 없음"))
         if st.form_submit_button("이 조건으로 다시 계산"):
+            problems = _edit_problems(team, modules, delivs)
+            if problems:
+                st.error(" ".join(problems))
+                return
             try:
                 label = agent.unique_label("수정 확인안", [x.request.label for x in res.quotes])
                 req = first.model_copy(update={
@@ -251,7 +274,7 @@ def tab_edit(res):
                 st.session_state["pending_view"] = label    # 다시 그릴 때 새 안을 보고 있는 안으로 선택한다
                 st.rerun()
             except ValueError as e:
-                st.error(f"조건을 확인하세요: {str(e)[:200]}")
+                st.error(f"조건을 확인하세요: {_plain_error(e)}")
 
 
 def tab_history():

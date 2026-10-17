@@ -192,3 +192,36 @@ def test_request_area_is_a_fresh_collapsed_element_for_every_new_result(app):
     _submit(at)
     second = _request_expander(at)
     assert len(calls) == 2 and second.label != first and second.proto.expanded is False
+
+
+def _edit_and_recalc(at, **changes):
+    for label, value in changes.items():
+        next(w for w in list(at.number_input) + list(at.multiselect) if w.label == label).set_value(value)
+    [b for b in at.button if b.label == "이 조건으로 다시 계산"][0].click().run()
+
+
+def _first_result(app):
+    at, calls = app
+    at.text_area[0].set_value("고대 3개월 5명")
+    _submit(at)
+    return at
+
+
+def test_edit_with_zero_people_explains_in_plain_korean(app):
+    at = _first_result(app)
+    _edit_and_recalc(at, **{"PM 인원": 0, "수석컨설턴트 인원": 0, "컨설턴트 인원": 0, "분석가 인원": 0})
+    msgs = " ".join(e.value for e in at.error)
+    assert "1명 이상" in msgs and "validation" not in msgs.lower() and "Value error" not in msgs
+
+
+def test_edit_with_no_stage_or_deliverable_explains_in_plain_korean(app):
+    at = _first_result(app)
+    _edit_and_recalc(at, **{"단계": [], "산출물": []})
+    msgs = " ".join(e.value for e in at.error)
+    assert "단계를 하나 이상" in msgs and "산출물을 하나 이상" in msgs and "validation" not in msgs.lower()
+
+
+def test_valid_edit_still_adds_a_scenario(app):
+    at = _first_result(app)
+    _edit_and_recalc(at, **{"기간(주)": 14})
+    assert not at.error and any("수정 확인안" in str(o) for r in at.radio for o in r.options)
