@@ -1,4 +1,4 @@
-"""견적 엔진. 금액은 LLM이 아니라 이 모듈이 계산한다(재현 가능).
+"""견적 엔진. 금액은 LLM이 아니라 이 모듈이 계산한다(같은 입력과 같은 가정값이면 같은 금액).
 단가·가산율·기준안은 공개 정보가 없어 모두 '가정값'이다(docs/decisions.md 참고)."""
 from itertools import product
 from typing import Dict, List, Optional
@@ -96,7 +96,7 @@ BASELINE = QuoteRequest(label="기준안(서울대 PI)")
 
 
 def apply_assumptions(cfg: dict) -> None:
-    """가정값을 교체한다(제자리 갱신). 단가가 바뀌어도 Quote에 version이 남아 과거 견적을 구분할 수 있다."""
+    """가정값을 교체한다(제자리 갱신). Quote에 version이 남아 어느 버전으로 계산했는지 구분할 수 있다(옛 값은 보관하지 않는다)."""
     global _A
     _A = cfg
     for target, key in ((RATES, "rates"), (MODULE_WEIGHT, "module_weight"), (DELIVERABLE_WEIGHT, "deliverable_weight"),
@@ -135,7 +135,7 @@ class Quote(BaseModel):
     capacity: float
     margin: float                            # 공급가액 / 원가(인건비+간접경비) - 1
     warnings: List[str]
-    assumptions_version: str = ""            # 이 견적을 계산한 가정값 버전(과거 견적 재현용)
+    assumptions_version: str = ""            # 계산에 쓴 가정값 버전(구분용. 옛 단가 값은 저장하지 않아 재계산 재현은 안 된다)
     assumptions_as_of: str = ""
 
 

@@ -85,17 +85,19 @@ def run_request(text, use_ai, prefer_cache):
 
 
 with st.sidebar:
-    st.subheader("가정값")
-    st.caption(assumption_label() + " · 파일: data/assumptions.json")
-    for title, table in (("월 단가(원)", RATES), ("단계 공수 비중", MODULE_WEIGHT),
-                         ("산출물 공수 비중", DELIVERABLE_WEIGHT), ("대학 규모 계수", CLIENT_SCALE)):
-        st.dataframe(pd.Series(table, name=title).to_frame(), width="stretch")
-    st.caption(assumption_text())
-    assumption_editor()
+    # 자주 쓰는 것(예시·스위치)을 맨 위에 두고, 길어지는 가정값 표는 접힌 영역 안에 둔다.
+    st.radio("예시 요청 (누르면 바로 실행)", EXAMPLES, index=None, key="example", on_change=_on_pick)
     use_ai = st.toggle("AI 해석 사용", value=True, help="끄면 요청 문장을 외부 AI로 보내지 않고 규칙 기반으로만 해석합니다(정확도 낮음).")
     prefer_cache = st.checkbox("시연 저장본 우선 사용 (네트워크 없이)",
                                help="예시 문장과 정확히 같을 때만 미리 저장한 실제 결과를 보여줍니다. API가 안 될 때도 같은 저장본으로 대체합니다.")
-    st.radio("예시 요청 (누르면 바로 실행)", EXAMPLES, index=None, key="example", on_change=_on_pick)
+    st.divider()
+    with st.expander("가정값 보기"):
+        st.caption(assumption_label() + " · 파일: data/assumptions.json")
+        for title, table in (("월 단가(원)", RATES), ("단계 공수 비중", MODULE_WEIGHT),
+                             ("산출물 공수 비중", DELIVERABLE_WEIGHT), ("대학 규모 계수", CLIENT_SCALE)):
+            st.dataframe(pd.Series(table, name=title).to_frame(), width="stretch")
+        st.caption(assumption_text())
+    assumption_editor()
 
 # 입력창과 버튼을 폼으로 묶어, 타이핑만으로는 재실행되지 않게 한다(계산 중에 입력창을 건드려도 실행이 중단되지 않는다).
 with st.form("request_form", border=False):
@@ -270,7 +272,10 @@ else:
     if st.session_state.get("last_request"):
         st.caption("실행한 요청: " + md_safe(st.session_state["last_request"]))
     if st.session_state.get("replayed"):
-        st.info("미리 저장해 둔 시연 결과입니다. 실시간 계산이 아니며, 저장 당시의 가정값 버전으로 계산된 값입니다.")
+        saved = res.quotes[0].assumptions_version if res.quotes else ""
+        now = engine._A["version"]
+        changed = f" 저장본은 가정값 {saved}로 계산됐고 지금은 {now}라서 숫자가 다를 수 있습니다." if saved and saved != now else ""
+        st.info("미리 저장해 둔 시연 결과입니다. 실시간 계산이 아니며, 저장 당시의 가정값 버전으로 계산된 값입니다." + changed)
     elif res.mock:
         st.warning("AI를 쓰지 않았거나 쓸 수 없어 규칙 기반 mock으로 동작했습니다. 해석 정확도가 낮습니다.")
     if res.unverified:

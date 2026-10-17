@@ -89,3 +89,27 @@ def test_example_runs_with_its_own_text_not_the_form_value(app):
     first = _example_radio(at).options[0]
     _example_radio(at).set_value(first).run()
     assert calls == [first]
+
+
+def test_replay_banner_says_when_assumptions_changed_since_it_was_saved(app, monkeypatch):
+    """저장본은 저장 당시의 가정값으로 계산된 숫자다. 가정값 버전이 바뀌었으면 안내에 그 차이를 알려야 한다."""
+    from quote import engine
+    from quote.examples import EXAMPLES
+    at, calls = app
+    at.checkbox[0].set_value(True)
+    monkeypatch.setitem(engine._A, "version", "v9")
+    at.text_area[0].set_value(EXAMPLES[0])
+    _submit(at)
+    banners = [i.value for i in at.info if "저장해 둔" in i.value]
+    assert banners and "v9" in banners[0] and "v1" in banners[0]
+    assert calls == []                                   # 저장본이라 에이전트(API)를 부르지 않았다
+
+
+def test_sidebar_puts_examples_and_switches_before_the_long_assumption_tables(app):
+    """사이드바가 길어 예시까지 내려가지 못하던 문제: 예시·스위치를 맨 위에, 가정값 표는 접힌 영역 안에 둔다."""
+    at, _ = app
+    kinds = [c.type for _, c in sorted(at.sidebar.children.items())]
+    assert kinds.index("radio") < kinds.index("expander")
+    assert kinds.index("toggle") < kinds.index("expander")
+    top_level_tables = [k for k in kinds if k == "arrow_data_frame"]
+    assert top_level_tables == []                        # 표 4개는 접힌 영역 안으로 들어갔다

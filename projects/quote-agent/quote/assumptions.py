@@ -1,5 +1,6 @@
 """가정값 로더. 단가·비중·가산율·정책 임계값을 data/assumptions.json에서 읽고, 파일이 없거나 잘못되면 DEFAULTS를 쓴다.
-실제 견적서를 받으면 이 파일의 값과 version/as_of/status만 바꾸면 된다(과거 견적은 Quote에 기록된 version으로 재현).
+실제 견적서를 받으면 이 파일의 값과 version/as_of/status만 바꾸면 된다. 견적에는 계산에 쓴 version이 기록되어 어느 버전으로
+계산했는지 구분할 수 있다. 다만 옛 단가 값은 저장하지 않으므로, 과거 견적을 같은 금액으로 다시 계산하려면 그 버전의 파일을 따로 보관해야 한다.
 VAT(10%)는 법정 세율이라 가정값이 아니라 engine.py의 고정값이다."""
 import copy
 import json
