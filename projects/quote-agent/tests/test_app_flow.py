@@ -66,3 +66,26 @@ def test_summary_tab_shows_numbers_before_the_ai_text(app):
     first_metric = next(i for i, c in enumerate(kids) if _has_metric(c))
     ai_text = next(i for i, c in enumerate(kids) if c.type == "markdown" and "(mock)" in str(c.value))
     assert first_metric < ai_text and ai_text < len(kids) - 1   # 숫자 → (경고) → AI 문장 → 안내 순서
+
+
+def _example_radio(at):
+    """결과가 나온 뒤에는 '보고 있는 안' 라디오가 앞에 오므로 순서가 아니라 이름으로 고른다."""
+    return next(r for r in at.radio if r.label.startswith("예시 요청"))
+
+
+def test_same_example_can_be_run_twice(app):
+    """라디오는 이미 선택된 항목을 다시 눌러도 변화가 없으므로, 실행 뒤 선택을 비워 두 번째 클릭도 실행되게 한다."""
+    at, calls = app
+    first = _example_radio(at).options[0]
+    _example_radio(at).set_value(first).run()
+    _example_radio(at).set_value(first).run()
+    assert calls == [first, first]
+
+
+def test_example_runs_with_its_own_text_not_the_form_value(app):
+    """폼 입력값이 비어 있어도(브라우저의 폼은 제출 전 값을 서버에 보내지 않는다) 예시 문장 자체로 실행한다."""
+    at, calls = app
+    at.text_area[0].set_value("")
+    first = _example_radio(at).options[0]
+    _example_radio(at).set_value(first).run()
+    assert calls == [first]

@@ -26,8 +26,11 @@ st.info("가정값 기반 초안이며 실제 견적이 아닙니다. 설명은 
 
 def _on_pick():
     """예시를 고르면 입력창에 채우고 바로 실행한다(시연 중 타이핑을 줄인다)."""
-    st.session_state["req_text"] = st.session_state["example"]
-    st.session_state["autorun"] = True
+    chosen = st.session_state.get("example")
+    if chosen:
+        st.session_state["req_text"] = chosen
+        st.session_state["autorun_text"] = chosen    # 폼 입력값이 아니라 예시 문장 자체로 실행한다
+    st.session_state["example"] = None               # 선택을 비워, 같은 예시를 다시 눌러도 실행되게 한다
 
 
 def assumption_editor():
@@ -98,12 +101,15 @@ with st.sidebar:
 with st.form("request_form", border=False):
     text = st.text_area("견적 요청", key="req_text", height=90, placeholder="예: 고려대, 4개월, 6명, 상주 없음")
     clicked = st.form_submit_button("견적 만들기", type="primary")
-if clicked and not text.strip():
+auto_text = st.session_state.pop("autorun_text", None)
+if clicked and not text.strip() and not auto_text:
     st.warning("요청 문장을 입력해 주세요.")
-if (clicked or st.session_state.pop("autorun", False)) and text.strip():
+request_text = auto_text or (text.strip() if clicked else "")
+if request_text:
     with st.spinner("에이전트가 견적을 계산하는 중..."):
         try:
-            st.session_state["res"] = run_request(text.strip(), use_ai, prefer_cache)
+            st.session_state["res"] = run_request(request_text, use_ai, prefer_cache)
+            st.session_state["last_request"] = request_text
         except Exception as e:   # 화면이 예외 덤프로 죽지 않게, 이유를 알리고 이전 결과는 지운다
             st.session_state.pop("res", None)
             st.error(f"견적을 만들지 못했습니다: {type(e).__name__}: {str(e)[:150]}")
@@ -261,6 +267,8 @@ base = baseline_quote()
 if not res:
     st.caption("요청을 쓰고 '견적 만들기'를 누르거나, 사이드바의 예시를 누르세요. 결과는 아래 탭으로 나뉘어 나옵니다.")
 else:
+    if st.session_state.get("last_request"):
+        st.caption("실행한 요청: " + md_safe(st.session_state["last_request"]))
     if st.session_state.get("replayed"):
         st.info("미리 저장해 둔 시연 결과입니다. 실시간 계산이 아니며, 저장 당시의 가정값 버전으로 계산된 값입니다.")
     elif res.mock:
