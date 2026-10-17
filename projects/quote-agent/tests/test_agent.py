@@ -99,3 +99,11 @@ def test_mock_rejects_ambiguous_or_repeated_conditions():
         assert r.mock and r.quotes == [] and "해석하지 못" in r.text, text
     assert agent._mock_request("PM 1명 컨설턴트 2명 고대 12주").team == {"PM": 1, "컨설턴트": 2}
     assert agent._mock_request("고대 12주 12주").weeks == 12            # 같은 값의 반복은 충돌이 아니다
+
+
+def test_mock_role_names_do_not_match_inside_longer_role_names():
+    r = agent._mock_request
+    assert r("수석컨설턴트 1명 12주").team == {"수석컨설턴트": 1}
+    assert r("수석컨설턴트 2명 PM 1명 12주").team == {"PM": 1, "수석컨설턴트": 2}
+    full = r("PM 1명 수석컨설턴트 1명 컨설턴트 2명 분석가 2명 16주")      # 이 서비스의 대표 팀 구성 문장
+    assert full.team == {"PM": 1, "수석컨설턴트": 1, "컨설턴트": 2, "분석가": 2}

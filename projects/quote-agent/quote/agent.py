@@ -183,13 +183,15 @@ def _mock_request(text: str) -> QuoteRequest:
     if durations:
         kw["weeks"] = durations.pop()
     roles: dict = {}
-    for role in RATES:
-        found_n = [int(m.group(1)) for m in re.finditer(rf"{re.escape(role)}\s*(\d{{1,5}})\s*명", text)]
+    rest = text   # 긴 역할 이름부터 매칭하고 그 구간을 지운다('컨설턴트'가 '수석컨설턴트' 안에서 또 매칭되지 않게)
+    for role in sorted(RATES, key=len, reverse=True):
+        pat = rf"{re.escape(role)}\s*(\d{{1,5}})\s*명"
+        found_n = [int(m.group(1)) for m in re.finditer(pat, rest)]
         if len(set(found_n)) > 1:
             raise MockParseError(f"'{role}' 인원이 서로 다르게 여러 번 나옵니다({found_n})")
         if found_n:
             roles[role] = found_n[0]
-    rest = re.sub(r"(?:" + "|".join(map(re.escape, RATES)) + r")\s*\d{1,5}\s*명", " ", text)   # 역할별 인원을 뺀 나머지
+        rest = re.sub(pat, " ", rest)
     if roles and re.search(r"-?\d{1,5}\s*명", rest):
         raise MockParseError("총인원과 역할별 인원이 함께 있습니다. 둘 중 하나만 적어 주세요")
     if roles:

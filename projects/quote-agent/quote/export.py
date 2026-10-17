@@ -72,6 +72,16 @@ def to_xlsx(q: Quote, base: Quote) -> bytes:
         ws.append((w,))
     _widths(ws, (100,))
 
+    _force_text(wb)
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def _force_text(wb: Workbook) -> None:
+    """사용자·LLM이 넣은 문자열이 '='·'+'·'-'·'@'로 시작해도 엑셀 수식으로 실행되지 않게 모든 문자열 셀을 텍스트로 고정한다."""
+    for ws in wb:
+        for row in ws.iter_rows():
+            for c in row:
+                if isinstance(c.value, str):
+                    c.data_type = "s"
