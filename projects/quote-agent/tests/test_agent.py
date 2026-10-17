@@ -90,3 +90,12 @@ def test_duration_months_tool_input_is_not_overridden_by_baseline_weeks():
     res = agent.AgentResult(text="")
     agent._run_tool("calculate_quote", {"duration_months": 3}, res)
     assert res.quotes[0].request.weeks == 13
+
+
+def test_mock_rejects_ambiguous_or_repeated_conditions():
+    for text in ["PM 1명 컨설턴트 2명 PM 2명 고대", "총 6명, PM 1명, 16주", "6명 중 PM 1명 8주",
+                 "고대 4개월 6명. 고대 5개월 6명."]:
+        r = agent.run(text, use_ai=False)
+        assert r.mock and r.quotes == [] and "해석하지 못" in r.text, text
+    assert agent._mock_request("PM 1명 컨설턴트 2명 고대 12주").team == {"PM": 1, "컨설턴트": 2}
+    assert agent._mock_request("고대 12주 12주").weeks == 12            # 같은 값의 반복은 충돌이 아니다

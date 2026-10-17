@@ -171,16 +171,27 @@ def _mock_request(text: str) -> QuoteRequest:
         raise MockParseError(f"여러 대학({', '.join(found)})이 함께 언급되어 한 번에 하나만 해석할 수 있습니다")
     if found:
         kw["client"] = found[0]
-    if m := re.search(r"(-?\d{1,5})\s*(개월|주)", text):
+    durations = set()
+    for m in re.finditer(r"(-?\d{1,5})\s*(개월|주)", text):
         n = int(m.group(1))
         weeks = round(n * 4.345) if m.group(2) == "개월" else n
         if n < 1 or not 1 <= weeks <= 104:
             raise MockParseError(f"기간 '{m.group(0)}'이 1주~104주(24개월) 범위를 벗어납니다")
-        kw["weeks"] = weeks
-    roles = {}
+        durations.add(weeks)
+    if len(durations) > 1:
+        raise MockParseError(f"기간이 서로 다르게 여러 번 나옵니다({sorted(durations)}주). 하나만 적어 주세요")
+    if durations:
+        kw["weeks"] = durations.pop()
+    roles: dict = {}
     for role in RATES:
-        if m := re.search(rf"{re.escape(role)}\s*(\d{{1,5}})\s*명", text):
-            roles[role] = int(m.group(1))
+        found_n = [int(m.group(1)) for m in re.finditer(rf"{re.escape(role)}\s*(\d{{1,5}})\s*명", text)]
+        if len(set(found_n)) > 1:
+            raise MockParseError(f"'{role}' 인원이 서로 다르게 여러 번 나옵니다({found_n})")
+        if found_n:
+            roles[role] = found_n[0]
+    rest = re.sub(r"(?:" + "|".join(map(re.escape, RATES)) + r")\s*\d{1,5}\s*명", " ", text)   # 역할별 인원을 뺀 나머지
+    if roles and re.search(r"-?\d{1,5}\s*명", rest):
+        raise MockParseError("총인원과 역할별 인원이 함께 있습니다. 둘 중 하나만 적어 주세요")
     if roles:
         if any(n > 20 for n in roles.values()) or sum(roles.values()) < 1:
             raise MockParseError(f"역할별 인원 {roles}은 역할당 0~20명, 합계 1명 이상이어야 합니다")

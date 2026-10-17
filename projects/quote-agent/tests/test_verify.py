@@ -47,3 +47,13 @@ def test_huge_text_is_fast():
     t = time.time()
     unverified_amounts("억 " * 300_000 + "1," * 300_000, [baseline_quote()])
     assert time.time() - t < 3
+
+
+def test_amounts_after_a_long_prefix_are_still_checked():
+    text = "ㄱ" * 30_000 + " 총액은 123,456,789원이고 99억원입니다"
+    assert unverified_amounts(text, [baseline_quote()]) != []
+
+
+def test_absurdly_long_digit_runs_do_not_crash():
+    bad = unverified_amounts("총액 " + "9" * 6000 + "원", [baseline_quote()])
+    assert bad and len(bad[0]) < 40

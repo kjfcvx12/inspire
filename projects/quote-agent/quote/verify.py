@@ -7,7 +7,7 @@ from quote.engine import Quote, baseline_quote, diff
 _NUM = re.compile(r"\d{1,3}(?:,\d{3})+|\d{7,}")
 _ABBR = re.compile(r"(\d{1,6}(?:\.\d{1,4})?)\s?억(?:\s?(\d{1,6}(?:,\d{3})*)\s?(천만|만))?\s?원?|(\d{1,6}(?:,\d{3})*)\s?(천만|만)\s?원")
 _UNIT = {"만": 10_000, "천만": 10_000_000}
-MAX_TEXT = 20_000        # 이보다 긴 설명은 앞부분만 검사한다(정규식 지연 방지)
+MAX_DIGITS = 18          # 이보다 긴 숫자는 금액이 아니다(정수 변환 한도 오류 방지)
 MIN_AMOUNT = 1_000_000   # 이보다 작은 숫자(연도, 주 수, 인원 등)는 검사하지 않는다
 
 
@@ -45,10 +45,15 @@ def _abbr_value(m: "re.Match") -> tuple:
 def unverified_amounts(text: str, quotes: Iterable[Quote], extra: Iterable[int] = ()) -> List[str]:
     """설명 속 금액 중 엔진 결과에 없는 것. 원 단위 숫자는 정확히 일치해야 하고, 억·만 축약은 표기 자릿수 반올림 안에서 일치해야 한다."""
     ok = known_amounts(quotes, extra)
-    text = text[:MAX_TEXT]
     bad: List[str] = []
     for m in _NUM.findall(text):
-        n = int(m.replace(",", ""))
+        digits = m.replace(",", "")
+        if len(digits) > MAX_DIGITS:                 # 비정상적으로 긴 숫자: int 변환 전에 미검증으로 표시한다
+            shown = m[:12] + "…"
+            if shown not in bad:
+                bad.append(shown)
+            continue
+        n = int(digits)
         if n >= MIN_AMOUNT and n not in ok and m not in bad:
             bad.append(m)
     for m in _ABBR.finditer(text):
