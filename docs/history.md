@@ -6,7 +6,9 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 035, 2026-10-17)
+## Current State (cumulative, as of Entry 036, 2026-10-17)
+
+**Plugin (Entry 036):** `superpowers` 7.0.0 installed at user scope; `CLAUDE.md` has a "superpowers 플러그인 사용 범위" section (kit rules take precedence; use debugging/verification/TDD only; skip brainstorming, plan, subagent, worktree skills). Needs `/reload-plugins` or a new session; not yet verified in action; undo with `claude plugin disable superpowers@claude-plugins-official`.
 
 **Interview-day status (Entry 035):** kit check 6 PASS at 11:39 on 2026-10-17 (114 tests); no code changed; `--api` ping not run; user reported 68% usage limit left; topic not yet announced. Next: receive topic → `/plan` → `/new-project` → `scripts/start.py`.
 
@@ -191,6 +193,11 @@
 - Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 036 — 2026-10-17 — Installed superpowers plugin and scoped it in CLAUDE.md
+- Installed `superpowers@claude-plugins-official` v7.0.0 with `claude plugin install ... --scope user` (official marketplace entry pinned to a commit sha). Inventory: 15 skills, 0 agents, 1 SessionStart hook, 0 MCP; always-on cost about 848 tokens; heavy on-invoke skills: subagent-driven-development ~11.8k, writing-skills ~9.7k, executing-plans ~7.3k.
+- Optimization: not by removing components (a plugin cannot be partly disabled from the CLI) but by adding a precedence section to `CLAUDE.md`: kit rules win; use systematic-debugging, verification-before-completion, TDD (core logic only); do not use brainstorming, writing-plans, executing-plans, subagent/parallel skills, worktree/finishing-branch skills. Reason: they duplicate `/plan`, ask too many questions, and burn the usage limit.
+- Open: plugin takes effect after `/reload-plugins` or a new session (not verified in this session); whether the SessionStart hook's "always invoke a skill" text overrides the CLAUDE.md scoping is unverified; `check.py` not run; not committed. If it misbehaves, `claude plugin disable superpowers@claude-plugins-official`.
 
 ### Entry 035 — 2026-10-17 — Interview-day readiness check (no topic received yet)
 - Ran `python scripts/check.py` at 11:39 on the interview day: 6 PASS / 0 WARN / 0 FAIL (compile 35 files, ruff clean, pytest 114 passed + 1 skipped in 63 s, API key set, `.env` not committed, e5-small embedding cache present). `--api` live ping was not run on purpose (usage limit).

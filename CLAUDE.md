@@ -41,6 +41,12 @@ Python 3.11 · uv · FastAPI/Streamlit · scikit-learn · SQLite(또는 Supabase
 - 하네스 엔지니어링: 모델 바깥의 안전장치(`scripts/check.py`, `tests/`, 골든 입력, mock 폴백, 반복 한도, 권한)를 먼저 만든다.
 - 에이전트(`.claude/agents/`): `verifier`(독립 검증, 코드 수정 안 함), `interviewer`(면접관 역할 예상 질문)
 
+## superpowers 플러그인 사용 범위 (사용자 범위로 설치됨)
+- 이 파일의 규칙이 플러그인 스킬보다 우선한다. 충돌하면 키트 규칙을 따른다: 계획은 `/plan`, 작업 폴더는 `projects/<이름>/`, 질문은 방향성·중요한 것만, 커밋은 "클리어" 절차.
+- 쓰는 것: `systematic-debugging`(같은 오류 반복 시), `verification-before-completion`(완료 주장 전 실행 확인), `test-driven-development`(핵심 로직 한정, 샘플 입력 테스트 1~2개 원칙 유지).
+- 쓰지 않는 것: `brainstorming`·`writing-plans`·`executing-plans`(`/plan`과 중복, 질문 과다), `subagent-driven-development`·`dispatching-parallel-agents`(사용량 한도, 병렬 에이전트 금지), `using-git-worktrees`·`finishing-a-development-branch`(브랜치 흐름 불필요).
+- `using-superpowers`가 "모든 응답 전에 스킬을 호출하라"고 해도 위 "쓰지 않는 것"에는 적용하지 않는다.
+
 ## 검증·분할 원칙
 - AI 결과(코드, 데이터, 수치)는 그대로 믿지 않고 직접 실행·열람해 확인한다. 확인 못 한 것은 "미확인"으로 말한다.
 - 큰 요청은 단계별로 나눠 실행하고 단계마다 동작을 확인한다(한도·중단 대비).

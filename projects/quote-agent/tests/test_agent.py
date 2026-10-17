@@ -1,0 +1,36 @@
+from types import SimpleNamespace as NS
+
+from common import llm
+from quote import agent
+
+
+def _block_tool(i, name, inp):
+    return NS(type="tool_use", id=f"t{i}", name=name, input=inp)
+
+
+def test_mock_fallback_when_api_down(monkeypatch):
+    def boom(**kw):
+        raise llm.LLMUnavailable("down")
+    monkeypatch.setattr(llm, "create", boom)
+    r = agent.run("고대에서 3개월, 5명, 상주로 견적 요청")
+    assert r.mock and r.text.startswith("(mock)") and len(r.quotes) == 1
+    assert r.quotes[0].request.client == "고려대학교" and r.quotes[0].request.onsite
+
+
+def test_tool_loop_uses_engine_and_stops(monkeypatch):
+    seq = iter([
+        NS(content=[_block_tool(1, "calculate_quote", {"client": "연세대학교", "weeks": 12})]),
+        NS(content=[_block_tool(2, "calculate_quote", {"weeks": -5})]),   # 잘못된 입력 → 오류가 모델에 돌아가야 함
+        NS(content=[NS(type="text", text="완료")]),
+    ])
+    seen = []
+    monkeypatch.setattr(llm, "create", lambda **kw: (seen.append(kw["messages"][-1]), next(seq))[1])
+    r = agent.run("연대 12주")
+    assert r.text == "완료" and len(r.quotes) == 1 and r.quotes[0].request.client == "연세대학교"
+    assert "입력 오류" in seen[-1]["content"][0]["content"]
+
+
+def test_step_limit(monkeypatch):
+    monkeypatch.setattr(llm, "create", lambda **kw: NS(content=[_block_tool(1, "get_baseline", {})]))
+    r = agent.run("x", max_steps=3)
+    assert r.steps == 3 and "한도" in r.text
