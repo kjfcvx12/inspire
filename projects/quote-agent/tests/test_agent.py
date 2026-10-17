@@ -35,6 +35,23 @@ def test_tool_loop_uses_engine_and_stops(monkeypatch):
     assert "입력 오류" in seen[-1]["content"][0]["content"]
 
 
+def test_ai_off_never_calls_llm(monkeypatch):
+    def boom(**kw):
+        raise AssertionError("LLM이 호출되면 안 된다")
+    monkeypatch.setattr(llm, "create", boom)
+    r = agent.run("고대 3개월 5명", use_ai=False)
+    assert r.mock and len(r.quotes) == 1
+
+
+def test_budget_tool_adds_scenarios_and_records_budget(monkeypatch):
+    seq = iter([NS(content=[_block_tool(1, "fit_to_budget", {"client": "고려대학교", "budget_total": 250_000_000})]),
+                NS(content=[NS(type="text", text="완료")])])
+    monkeypatch.setattr(llm, "create", lambda **kw: next(seq))
+    r = agent.run("고려대 예산 2.5억")
+    assert r.budgets == [250_000_000] and 1 <= len(r.quotes) <= 3
+    assert all(q.total <= 250_000_000 for q in r.quotes)
+
+
 def test_step_limit(monkeypatch):
     monkeypatch.setattr(llm, "create", lambda **kw: NS(content=[_block_tool(1, "get_baseline", {})]))
     r = agent.run("x", max_steps=3)

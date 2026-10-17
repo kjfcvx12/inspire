@@ -1,3 +1,20 @@
-# 골든셋 템플릿. 규칙은 starters/common/evalkit.py 상단 설명 참고.
-# 실행: python scripts/eval.py eval/golden.jsonl --target app.py:함수이름
-# {"id": "c1", "input": "입력", "expect": {"contains": ["기대 문구"]}}
+# 견적 엔진 골든셋(오프라인). 기대값은 코드 출력이 아니라 도메인 논리로 정했다(같은 인원·기간이면 같은 가격, 할인 상한 15% 등).
+# 실행: python scripts/eval.py eval/golden.jsonl --target quote/evaltarget.py:engine_case
+{"id": "e01-baseline", "input": {}, "expect": {"key": "capacity", "approx": [1.0, 0.01]}, "tags": ["normal"]}
+{"id": "e02-rush", "input": {"weeks": 10}, "expect": {"key": "lines", "contains": ["단기 수행 가산"]}, "tags": ["normal"]}
+{"id": "e03-longer-costs-more", "input": {"weeks": 24}, "expect": {"key": "delta", "range": [1, 1000000000]}, "tags": ["normal"]}
+{"id": "e04-smaller-univ-same-team-same-price", "input": {"client": "고려대학교"}, "expect": {"key": "delta", "approx": [0, 1000]}, "tags": ["normal"]}
+{"id": "e05-onsite-adds-line", "input": {"onsite": true}, "expect": {"key": "lines", "contains": ["상주 가산"]}, "tags": ["normal"]}
+{"id": "e06-drop-module-overstaffed", "input": {"modules": ["연구기획", "과제수주", "성과활용"]}, "expect": {"key": "warnings", "contains": ["과다"]}, "tags": ["normal"]}
+{"id": "e07-two-people-understaffed", "input": {"team": {"PM": 1, "분석가": 1}}, "expect": {"key": "warnings", "contains": ["부족"]}, "tags": ["normal"]}
+{"id": "e08-discount-cap", "input": {"discount_pct": 40}, "expect": {"key": "ratio", "approx": [0.85, 0.01]}, "tags": ["edge"]}
+{"id": "e09-one-week", "input": {"weeks": 1}, "expect": {"key": "warnings", "contains": ["부족"]}, "tags": ["edge"]}
+{"id": "e10-unknown-univ-flagged", "input": {"client": "한양대학교"}, "expect": {"key": "warnings", "contains": ["규모 계수"]}, "tags": ["edge"]}
+{"id": "e11-zero-weeks-rejected", "input": {"weeks": 0}, "expect": {"key": "error", "contains": ["weeks"]}, "tags": ["edge"]}
+{"id": "e12-unknown-role-no-quote", "input": {"team": {"임원": 1}}, "expect": {"key": "error", "contains": ["역할"], "not_contains": ["total"]}, "tags": ["no-answer"]}
+{"id": "e13-onsite-is-12pct", "input": {"onsite": true}, "expect": {"key": "ratio", "approx": [1.12, 0.003]}, "tags": ["magnitude"]}
+{"id": "e14-english-is-8pct", "input": {"english_deliverables": true}, "expect": {"key": "ratio", "approx": [1.08, 0.003]}, "tags": ["magnitude"]}
+{"id": "e15-24weeks-is-1.5x", "input": {"weeks": 24}, "expect": {"key": "ratio", "approx": [1.5, 0.003]}, "tags": ["magnitude"]}
+{"id": "e16-8weeks-rush-0.625x", "input": {"weeks": 8}, "expect": {"key": "ratio", "approx": [0.625, 0.003]}, "tags": ["magnitude"]}
+{"id": "e17-korea-capacity-1.25", "input": {"client": "고려대학교"}, "expect": {"key": "capacity", "approx": [1.25, 0.01]}, "tags": ["magnitude"]}
+{"id": "e18-baseline-total-by-hand", "input": {}, "expect": {"key": "total", "approx": [353560000, 5000]}, "tags": ["magnitude"]}
