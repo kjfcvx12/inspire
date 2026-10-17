@@ -1,0 +1,55 @@
+{
+  "version": "v1",
+  "as_of": "2026-10-17",
+  "status": "가정(공개 정보 없음)",
+  "rates": {
+    "PM": 18000000,
+    "수석컨설턴트": 15000000,
+    "컨설턴트": 11000000,
+    "분석가": 7000000
+  },
+  "module_weight": {
+    "연구기획": 0.2,
+    "과제수주": 0.2,
+    "연구비관리": 0.35,
+    "성과활용": 0.25
+  },
+  "deliverable_weight": {
+    "구축 방향": 0.6,
+    "실행 로드맵": 0.4
+  },
+  "client_scale": {
+    "서울대학교": 1.0,
+    "고려대학교": 0.8,
+    "연세대학교": 0.85,
+    "KAIST": 0.6
+  },
+  "baseline": {
+    "weeks": 16,
+    "team": {
+      "PM": 1,
+      "수석컨설턴트": 1,
+      "컨설턴트": 2,
+      "분석가": 2
+    }
+  },
+  "onsite_uplift": 0.12,
+  "english_uplift": 0.08,
+  "rush_factor": 0.5,
+  "overhead": 0.15,
+  "profit": 0.1,
+  "support_rate_ratio": 0.5,
+  "max_discount_pct": 15.0,
+  "low_margin": 0.05,
+  "extra_warn_pct": 50.0,
+  "capacity_low": 0.85,
+  "capacity_high": 1.3,
+  "right_size_min": 0.95,
+  "right_size_target": 1.05,
+  "fit_min_capacity": 0.9,
+  "fit_weeks": [
+    4,
+    52,
+    2
+  ]
+}

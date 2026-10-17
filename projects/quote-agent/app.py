@@ -5,8 +5,8 @@ import streamlit as st
 
 from common.ui import md_safe
 from quote import agent
-from quote.engine import (CLIENT_SCALE, DELIVERABLE_WEIGHT, MODULE_WEIGHT, RATES, QuoteRequest, baseline_quote,
-                          calculate, diff)
+from quote.engine import (CLIENT_SCALE, DELIVERABLE_WEIGHT, MODULE_WEIGHT, RATES, QuoteRequest, assumption_label,
+                          assumption_text, baseline_quote, calculate, diff)
 
 st.set_page_config(page_title="견적 에이전트", layout="wide")
 st.title("용역 견적 에이전트")
@@ -19,12 +19,12 @@ EXAMPLES = ["고려대에서 같은 용역을 3개월에 5명으로 요청했어
             "연세대, 연구비관리 단계는 빼고 나머지 세 단계만. 인원은 어떻게 하면 돼?",
             "고려대, 기준안과 같은데 데이터 이관 계획서를 산출물로 추가해줘"]
 with st.sidebar:
-    st.subheader("가정값 (공개 정보 없음)")
-    st.write("월 단가(원)", RATES)
-    st.write("단계 공수 비중", MODULE_WEIGHT)
-    st.write("산출물 공수 비중", DELIVERABLE_WEIGHT)
-    st.write("대학 규모 계수", CLIENT_SCALE)
-    st.caption("간접경비 15% · 이윤 10% · VAT 10%. 기준안 16주, PM1·수석1·컨설턴트2·분석가2.")
+    st.subheader("가정값")
+    st.caption(assumption_label() + " · 파일: data/assumptions.json")
+    for title, table in (("월 단가(원)", RATES), ("단계 공수 비중", MODULE_WEIGHT),
+                         ("산출물 공수 비중", DELIVERABLE_WEIGHT), ("대학 규모 계수", CLIENT_SCALE)):
+        st.dataframe(pd.Series(table, name=title).to_frame(), width="stretch")
+    st.caption(assumption_text())
     use_ai = st.toggle("AI 해석 사용", value=True, help="끄면 요청 문장을 외부 AI로 보내지 않고 규칙 기반으로만 해석합니다(정확도 낮음).")
     pick = st.radio("예시 요청", EXAMPLES, index=None)
 
@@ -87,6 +87,7 @@ if res and res.quotes:
     team_txt = " · ".join(f"{r} {n}" for r, n in q.request.team.items())
     st.markdown(f"**{md_safe(q.request.label)}** — 기준안 대비 {d['합계(VAT 포함)']:+,}원 · {q.request.client} · "
                 f"{q.request.weeks}주 · {sum(q.request.team.values())}명({team_txt})")
+    st.caption(f"계산 기준: 가정값 {q.assumptions_version} ({q.assumptions_as_of})")
     for w in q.warnings:
         st.warning(w)
     alloc = pd.DataFrame(q.allocation).T.fillna(0).astype(int)

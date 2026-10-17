@@ -1,14 +1,17 @@
 """골든셋 평가용 얇은 어댑터. 평가기가 비교하기 쉬운 평평한 dict로 바꿔 돌려준다."""
+import copy
 from functools import lru_cache
 
 from pydantic import ValidationError
 
-from quote import agent
+from quote import agent, assumptions, engine
 from quote.engine import QuoteRequest, baseline_quote, calculate
 
 
 def engine_case(**kw) -> dict:
-    """엔진 평가(오프라인). 잘못된 입력은 죽지 않고 error를 돌려준다."""
+    """엔진 평가(오프라인). 코드에 고정된 DEFAULTS로 계산하므로 운영 assumptions.json이 바뀌어도 골든셋이 깨지지 않는다.
+    잘못된 입력은 죽지 않고 error를 돌려준다."""
+    engine.apply_assumptions(copy.deepcopy(assumptions.DEFAULTS))
     try:
         q = calculate(QuoteRequest(**kw))
     except ValidationError as e:
