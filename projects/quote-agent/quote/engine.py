@@ -40,6 +40,8 @@ class QuoteRequest(BaseModel):
     english_deliverables: bool = Field(False, description="영문 산출물 포함 여부")
     support_months: int = Field(0, ge=0, le=24, description="종료 후 사후 지원 개월 수")
     discount_pct: float = Field(0.0, ge=0, description="협약 할인율(%)")
+    client_scale: Optional[float] = Field(None, ge=0.3, le=2.0, description="규모 계수. 가정값 표에 없는 대학에서만 estimate_client_scale 결과를 넣는다")
+    scale_note: str = Field("", max_length=200, description="규모 계수를 이렇게 본 근거(AI 추정일 때)")
 
     @field_validator("client")
     @classmethod
@@ -147,15 +149,22 @@ def _mm(team: Dict[str, int], weeks: int) -> float:
     return sum(team.values()) * weeks / WEEKS_PER_MONTH
 
 
+def scale_of(req: QuoteRequest) -> float:
+    """규모 계수. 가정값 표에 있는 대학은 항상 표 값을 쓴다(AI가 덮어쓰지 못한다). 표에 없는 대학만 요청의 값(AI 추정)을 쓰고, 그것도 없으면 1.0."""
+    if req.client in CLIENT_SCALE:
+        return CLIENT_SCALE[req.client]
+    return req.client_scale if req.client_scale is not None else 1.0
+
+
 def _required(req: QuoteRequest) -> float:
     """필요 공수(MM) = 기준 공수 × 규모 × (단계 비중합 × 산출물 비중합 + 신규 항목 비율합)."""
     core = sum(MODULE_WEIGHT[m] for m in set(req.modules)) * sum(DELIVERABLE_WEIGHT[d] for d in set(req.deliverables))
     extra = sum(e.effort_pct for e in req.extra_items) / 100
-    return _mm(BASELINE.team, BASELINE.weeks) * CLIENT_SCALE.get(req.client, 1.0) * (core + extra)
+    return _mm(BASELINE.team, BASELINE.weeks) * scale_of(req) * (core + extra)
 
 
 def _allocation(req: QuoteRequest, supply: int) -> Dict[str, Dict[str, int]]:
-    base = _mm(BASELINE.team, BASELINE.weeks) * CLIENT_SCALE.get(req.client, 1.0)
+    base = _mm(BASELINE.team, BASELINE.weeks) * scale_of(req)
     required = _required(req)
     out: Dict[str, Dict[str, int]] = {}
     for m in req.modules:
@@ -175,7 +184,12 @@ def calculate(req: QuoteRequest) -> Quote:
     staffed = _mm(req.team, req.weeks)
     capacity = staffed / required
     warnings: List[str] = []
-    if req.client not in CLIENT_SCALE:
+    if req.client in CLIENT_SCALE:
+        pass
+    elif req.client_scale is not None:
+        warnings.append(f"'{req.client}'의 규모 계수 {req.client_scale:g}는 AI 추정입니다({req.scale_note or '근거 없음'}). "
+                        f"확정 전에 담당자가 확인하세요")
+    else:
         warnings.append(f"'{req.client}'은 규모 계수가 없어 1.0으로 가정했습니다")
     if capacity < _A["capacity_low"]:
         warnings.append(f"투입 공수가 필요 공수의 {capacity:.0%}로 부족합니다(일정 지연·품질 리스크)")

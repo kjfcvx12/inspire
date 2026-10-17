@@ -23,7 +23,7 @@ def engine_case(**kw) -> dict:
 
 @lru_cache(maxsize=64)
 def _run(text: str) -> dict:
-    r = agent.run(text)   # 같은 문장은 한 번만 호출한다(케이스마다 다른 항목을 검사하므로 비용·편차를 줄인다)
+    r = agent.run(text, allow_questions=False)   # 골든셋은 되묻지 않는 경로를 본다. 같은 문장은 한 번만 호출한다(케이스마다 다른 항목을 검사하므로 비용·편차를 줄인다)
     out = {"text": r.text, "n_quotes": len(r.quotes), "mock": r.mock, "n_unverified": len(r.unverified)}
     if r.quotes:
         q = r.quotes[0]

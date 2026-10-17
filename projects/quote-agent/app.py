@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from common.ui import md_safe
-from quote import agent, engine, history
+from quote import agent, engine, history, intake, review
 from quote.assumptions_io import next_version, save_assumptions
 from quote.document import quote_document
 from quote.explain import explain
@@ -77,18 +77,39 @@ def assumption_editor():
                     st.error(f"저장하지 않았습니다(기존 값 유지): {e}")
 
 
-def run_request(text, use_ai, prefer_cache):
+def run_request(text, use_ai, prefer_cache, ai_review=True, use_planner=False):
     """저장본 우선이면 예시 문장에 한해 저장본을 쓰고, API 장애로 mock이 됐을 때도 저장본이 있으면 대체한다."""
     hit = lookup(text, load_cache()) if DEMO_MODE else None
     st.session_state["replayed"] = False
     if hit and prefer_cache:
         st.session_state["replayed"] = True
         return hit
-    res = agent.run(text, use_ai=use_ai)
+    last = {}   # 자기 수정 루프가 마지막으로 얻은 AI 검증 결과(같은 설명이면 교차검증에서 다시 부르지 않는다)
+
+    def critic(r):
+        last.update(text=r.text, verdict=review.ai_verify(r.text, r.quotes))
+        return last['verdict']['issues']
+    critic = critic if use_ai and ai_review else None
+    res = agent.run(text, use_ai=use_ai, critic=critic, allow_questions=True, use_planner=use_planner)   # 검증이 문제를 찾으면 에이전트가 설명을 다시 쓴다
     if res.mock and use_ai and hit:
         st.session_state["replayed"] = True
         return hit
+    if use_ai and ai_review:
+        done = last.get('verdict') if last.get('text') == res.text and last['verdict']['status'] != '불가' else None
+        res.review = review.run_review(res, verified=done)   # AI가 계산·설명을 따로 확인(참고용). 실패해도 결과는 그대로
     return res
+
+
+def _read_intake():
+    """업로드한 의뢰서에서 요구사항을 뽑아 요청 입력창에 채운다. 실행은 하지 않는다(사용자가 확인하고 고친 뒤 직접 실행)."""
+    f = st.session_state.get("intake_file")
+    st.session_state.pop("intake_msg", None)
+    if f is None:
+        return
+    request, kind, note = intake.process(f.name, f.getvalue())
+    if request:
+        st.session_state["req_text"] = request
+    st.session_state["intake_msg"] = (kind, note)
 
 
 with st.sidebar:
@@ -96,6 +117,11 @@ with st.sidebar:
     if DEMO_MODE:
         st.radio("예시 요청 (누르면 바로 실행)", EXAMPLES, index=None, key="example", on_change=_on_pick)
     use_ai = st.toggle("AI 해석 사용", value=True, help="끄면 요청 문장을 외부 AI로 보내지 않고 규칙 기반으로만 해석합니다(정확도 낮음).")
+    ai_review = st.toggle("AI 교차검증", value=True, disabled=not use_ai,
+                          help="AI가 같은 조건을 규칙만 보고 다시 계산하고, 설명이 엔진 결과와 맞는지 따로 확인합니다. "
+                               "단가·계산 규칙이 외부 AI로 추가 전송되고 호출이 2번 늘어납니다. 화면 금액은 항상 엔진 값입니다.")
+    use_planner = st.toggle("계획 에이전트", value=False, disabled=not use_ai,
+                            help="계산 전에 AI가 어떤 안을 계산할지 계획을 세워 실행 에이전트에게 넘깁니다. 호출이 1번 늘고 5~10초 더 걸려서 기본은 꺼 두었습니다.")
     prefer_cache = DEMO_MODE and st.checkbox(
         "시연 저장본 우선 사용 (네트워크 없이)",
         help="예시 문장과 정확히 같을 때만 미리 저장한 실제 결과를 보여줍니다. API가 안 될 때도 같은 저장본으로 대체합니다.")
@@ -113,6 +139,15 @@ with st.sidebar:
 # 라벨 끝의 보이지 않는 글자 수를 요청마다 바꿔, 사용자가 펼쳐 둔 상태가 다음 결과에서도 남지 않고 다시 접히게 한다.
 with st.expander("새 요청 입력" + "​" * (st.session_state.get("run_count", 0) % 2 + 1),
                  expanded=not st.session_state.get("res")):
+    up = st.file_uploader("의뢰서 업로드 (txt·md·pdf, 선택)", type=["txt", "md", "pdf"], key="intake_file", disabled=not use_ai,
+                          help="문서 앞 12,000자가 외부 AI로 전송됩니다. 'AI 해석 사용'을 끄면 쓸 수 없습니다. 읽은 결과는 입력창에 채워지며 자동 실행되지 않습니다.")
+    if up is not None:
+        st.button("의뢰서에서 요구사항 읽기", on_click=_read_intake, disabled=not use_ai)
+    kind, note = st.session_state.get("intake_msg", (None, ""))
+    if kind == "error":
+        st.error(note)
+    elif kind == "info":
+        st.info(note)
     with st.form("request_form", border=False):
         text = st.text_area("견적 요청", key="req_text", height=68, label_visibility="collapsed",
                             placeholder="견적 요청을 입력하세요. 예: 고려대, 4개월, 6명, 상주 없음")
@@ -125,7 +160,7 @@ computed = False
 if request_text:
     with st.spinner("에이전트가 견적을 계산하는 중..."):
         try:
-            st.session_state["res"] = run_request(request_text, use_ai, prefer_cache)
+            st.session_state["res"] = run_request(request_text, use_ai, prefer_cache, ai_review, use_planner)
             st.session_state["last_request"] = request_text
             computed = True
         except Exception as e:   # 화면이 예외 덤프로 죽지 않게, 이유를 알리고 이전 결과는 지운다
@@ -154,6 +189,12 @@ def tab_summary(res, q, base):
     for w in q.warnings:
         st.warning(w)
     st.markdown(md_safe(annotate_won(res.text)))
+    if res.plan:
+        st.caption(md_safe("계획: " + res.plan))
+    if res.revisions:
+        st.caption(md_safe(f"자기 수정: 검증 의견을 받아 설명을 {len(res.revisions)}번 고쳐 썼습니다(사유: {res.revisions[0][:80]})."))
+    for line in review.describe(res.review):
+        st.caption(md_safe(line))
     st.caption("자세한 내용은 위 탭에서 볼 수 있습니다: 견적서(화면에서 바로 확인) · 비교 · 근거·민감도 · 조건 확인·수정")
 
 
@@ -311,6 +352,16 @@ res = st.session_state.get("res")
 base = baseline_quote()
 if not res:
     st.caption("요청을 쓰고 '견적 만들기'를 누르거나, 사이드바의 예시를 누르세요. 결과는 아래 탭으로 나뉘어 나옵니다.")
+elif res.question:      # 에이전트가 되물은 경우: 답을 받아 원래 요청에 붙여 다시 실행한다
+    st.info("견적을 내려면 정보가 더 필요합니다: " + md_safe(res.question))
+    with st.form("answer_form", border=False):
+        answer = st.text_input("답변", placeholder="예: 고려대, 3개월, 5명")
+        sent = st.form_submit_button("답변 보내고 계속", type="primary")
+    if sent and answer.strip():
+        st.session_state["autorun_text"] = st.session_state.get("last_request", "") + " / 추가 답변: " + answer.strip()
+        st.rerun()
+    elif sent:
+        st.warning("답변을 입력해 주세요.")
 else:
     if st.session_state.get("last_request"):
         st.caption("실행한 요청: " + md_safe(st.session_state["last_request"]))
