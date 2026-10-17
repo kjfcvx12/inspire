@@ -6,7 +6,9 @@
 - **Writing:** on every update, (1) add a new entry at the top of the Log (newest first, next number), then (2) rewrite `Current State` so it folds in the new entry and still covers everything before it. Keep it short; never leave it stale.
 - Date format: YYYY-MM-DD. Record what was done, the result, and what is still open. Do not store secrets (API keys, tokens).
 
-## Current State (cumulative, as of Entry 034, 2026-10-16)
+## Current State (cumulative, as of Entry 035, 2026-10-17)
+
+**Interview-day status (Entry 035):** kit check 6 PASS at 11:39 on 2026-10-17 (114 tests); no code changed; `--api` ping not run; user reported 68% usage limit left; topic not yet announced. Next: receive topic → `/plan` → `/new-project` → `scripts/start.py`.
 
 > Session wrap-up protocol: when the user writes "클리어" → update this file, run `python scripts/check.py`, commit, report state; push only on "클리어 푸시". Then the user runs `/clear`.
 
@@ -189,6 +191,10 @@
 - Entries 025-026: Docker engine check and the container tests (real key, hybrid) are closed. Still open: Docker Desktop has no autostart (start it by hand before using it; quit it when unused to free memory); the browser check used the bm25 image only (the hybrid image was tested through `ask()`/`eval_retrieval.py`, not the page); the hybrid layers are a README recipe, not a generated option; the 30-40 minute abridged rehearsal on a `blank` topic and the full 120-minute human rehearsal are not done; default fallback text exposes raw error text.
 
 ## Log (newest first)
+
+### Entry 035 — 2026-10-17 — Interview-day readiness check (no topic received yet)
+- Ran `python scripts/check.py` at 11:39 on the interview day: 6 PASS / 0 WARN / 0 FAIL (compile 35 files, ruff clean, pytest 114 passed + 1 skipped in 63 s, API key set, `.env` not committed, e5-small embedding cache present). `--api` live ping was not run on purpose (usage limit).
+- User asked about further Colab tests: none needed (tested 10-15/10-16, user-reported); Colab only if the topic needs training. User reported 68% of the usage limit left; advice: no parallel agents, check `/usage` around minute 60, `--api` once before the presentation. No code changes. The interview topic had not been announced at this point.
 
 ### Entry 034 — 2026-10-16 — Reviewed 1.md/2.md guides, added Colab guide and topic map
 - User asked to check `1.md` (general 2-hour vibe-coding strategy) and `2.md` (hackathon-style guide with five company topics #1,2,3,4,6; #5 absent). Compared with `CLAUDE.md`: loop limit, MVP-first, mock fallback, eval, Streamlit starters already covered. Rejected from the guides: per-milestone "Proceed" approval (conflicts with the ask-only-direction rule), forced `[AI Security Audit]` comments (noise), and the template's `random.randint` probability (not defensible; reproducible numbers required).
