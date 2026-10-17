@@ -54,8 +54,9 @@ if res and res.quotes:
             delivs = c3.multiselect("산출물", list(DELIVERABLE_WEIGHT), first.deliverables)
             onsite = c3.checkbox("상주", first.onsite)
             english = c3.checkbox("영문 산출물", first.english_deliverables)
-            st.caption(f"발주: {first.client} · 신규 항목(추정): "
-                       f"{', '.join(f'{e.name} {e.effort_pct:g}%' for e in first.extra_items) or '없음'}")
+            extras = ", ".join(f"{e.name} {e.effort_pct:g}%({e.reason or '근거 없음'})" for e in first.extra_items)
+            st.markdown(f"발주: {md_safe(first.client)}" + (f" · 신규 항목 :orange-badge[LLM 추정] {md_safe(extras)}" if extras
+                                                         else " · 신규 항목 없음"))
             if st.form_submit_button("이 조건으로 다시 계산"):
                 try:
                     req = first.model_copy(update={
@@ -89,6 +90,7 @@ if res and res.quotes:
     for w in q.warnings:
         st.warning(w)
     alloc = pd.DataFrame(q.allocation).T.fillna(0).astype(int)
+    alloc.index = [f"{i} (LLM 추정)" if i.startswith("신규:") else i for i in alloc.index]
     st.caption("단계 × 산출물별 공급가액 배분(원, 비중은 가정값)")
     st.dataframe(alloc.style.format("{:,.0f}"), width="stretch")
 

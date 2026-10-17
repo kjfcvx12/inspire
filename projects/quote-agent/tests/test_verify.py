@@ -19,6 +19,15 @@ def test_budget_given_by_user_is_known():
     assert unverified_amounts("예산 250,000,000원", [], extra=[250_000_000]) == []
 
 
+def test_abbreviated_amounts_are_checked_within_rounding():
+    q = baseline_quote()                      # 합계 353,560,000
+    assert unverified_amounts("총액은 3.5억원입니다", [q]) == []            # 반올림 범위 안(±0.05억)
+    assert unverified_amounts("총액은 5억원입니다", [q]) == ["5억원"]       # 어떤 금액과도 안 맞음
+    assert unverified_amounts("공급가는 32,142만원", [q]) == []             # 321,418,000 ≈ 32,142만
+    assert unverified_amounts("차이는 9,999만원", [q]) == ["9,999만원"]
+    assert unverified_amounts("예산 2.5억", [], extra=[250_000_000]) == []
+
+
 def test_budget_headroom_is_known_but_other_numbers_are_not():
     q = calculate(QuoteRequest(weeks=12))
     budget = 400_000_000

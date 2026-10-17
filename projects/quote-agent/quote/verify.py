@@ -5,6 +5,7 @@ from typing import Iterable, List
 from quote.engine import Quote, baseline_quote, diff
 
 _NUM = re.compile(r"\d{1,3}(?:,\d{3})+|\d{7,}")
+_ABBR = re.compile(r"(\d+(?:\.\d+)?)\s*억(?:\s*(\d[\d,]*)\s*만)?\s*원?|(\d[\d,]*)\s*만\s*원")
 MIN_AMOUNT = 1_000_000   # 이보다 작은 숫자(연도, 주 수, 인원 등)는 검사하지 않는다
 
 
@@ -26,11 +27,28 @@ def known_amounts(quotes: Iterable[Quote], extra: Iterable[int] = ()) -> set:
     return {abs(v) for v in ok}
 
 
+def _abbr_value(m: "re.Match") -> tuple:
+    """'3.5억', '3억 5,000만', '32,142만원' → (원 단위 값, 반올림 허용 오차). 표기 자릿수의 절반이 오차다."""
+    if m.group(3):                                   # N만원
+        return int(m.group(3).replace(",", "")) * 10_000, 5_000
+    dec = m.group(1).partition(".")[2]
+    value = float(m.group(1)) * 100_000_000
+    if m.group(2):                                   # N억 M만
+        return value + int(m.group(2).replace(",", "")) * 10_000, 5_000
+    return value, 0.5 * 10 ** (8 - len(dec))
+
+
 def unverified_amounts(text: str, quotes: Iterable[Quote], extra: Iterable[int] = ()) -> List[str]:
+    """설명 속 금액 중 엔진 결과에 없는 것. 원 단위 숫자는 정확히 일치해야 하고, 억·만 축약은 표기 자릿수 반올림 안에서 일치해야 한다."""
     ok = known_amounts(quotes, extra)
     bad: List[str] = []
     for m in _NUM.findall(text):
         n = int(m.replace(",", ""))
         if n >= MIN_AMOUNT and n not in ok and m not in bad:
             bad.append(m)
+    for m in _ABBR.finditer(text):
+        value, tol = _abbr_value(m)
+        shown = m.group(0).strip()
+        if value >= MIN_AMOUNT and not any(abs(k - value) <= tol for k in ok) and shown not in bad:
+            bad.append(shown)
     return bad

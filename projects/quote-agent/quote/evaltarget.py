@@ -1,4 +1,6 @@
 """골든셋 평가용 얇은 어댑터. 평가기가 비교하기 쉬운 평평한 dict로 바꿔 돌려준다."""
+from functools import lru_cache
+
 from pydantic import ValidationError
 
 from quote import agent
@@ -16,13 +18,21 @@ def engine_case(**kw) -> dict:
             "capacity": q.capacity, "lines": " ".join(q.lines), "warnings": " ".join(q.warnings)}
 
 
-def agent_case(text: str) -> dict:
-    """에이전트 평가(API 호출). 첫 번째로 계산된 시나리오를 요약한다."""
-    r = agent.run(text)
-    out = {"text": r.text, "n_quotes": len(r.quotes), "mock": r.mock}
+@lru_cache(maxsize=64)
+def _run(text: str) -> dict:
+    r = agent.run(text)   # 같은 문장은 한 번만 호출한다(케이스마다 다른 항목을 검사하므로 비용·편차를 줄인다)
+    out = {"text": r.text, "n_quotes": len(r.quotes), "mock": r.mock, "n_unverified": len(r.unverified)}
     if r.quotes:
         q = r.quotes[0]
         out.update(client=q.request.client, weeks=q.request.weeks, headcount=sum(q.request.team.values()),
+                   n_modules=len(q.request.modules), n_extra=len(q.request.extra_items),
                    lines=" ".join(q.lines), warnings=" ".join(q.warnings),
-                   delta=q.total - baseline_quote().total)
+                   delta=q.total - baseline_quote().total,
+                   cheapest_total=min(x.total for x in r.quotes),
+                   min_headcount=min(sum(x.request.team.values()) for x in r.quotes))
     return out
+
+
+def agent_case(text: str) -> dict:
+    """에이전트 평가(API 호출). 첫 번째로 계산된 시나리오를 요약한다."""
+    return dict(_run(text))
