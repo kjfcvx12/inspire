@@ -6,7 +6,8 @@ import streamlit as st
 from common.ui import md_safe
 from quote import agent
 from quote.engine import (CLIENT_SCALE, DELIVERABLE_WEIGHT, MODULE_WEIGHT, RATES, QuoteRequest, assumption_label,
-                          assumption_text, baseline_quote, calculate, diff)
+                          assumption_text, baseline_quote, calculate, diff, sensitivity)
+from quote.export import to_xlsx
 
 st.set_page_config(page_title="견적 에이전트", layout="wide")
 st.title("용역 견적 에이전트")
@@ -94,6 +95,13 @@ if res and res.quotes:
     alloc.index = [f"{i} (LLM 추정)" if i.startswith("신규:") else i for i in alloc.index]
     st.caption("단계 × 산출물별 공급가액 배분(원, 비중은 가정값)")
     st.dataframe(alloc.style.format("{:,.0f}"), width="stretch")
+    with st.expander("하나씩 바꾸면? (민감도: 선택한 안 기준, VAT 포함)"):
+        sens = pd.DataFrame(sensitivity(q.request))
+        st.dataframe(sens.style.format({"총액(VAT 포함)": "{:,.0f}", "차이(VAT 포함)": "{:+,.0f}"}),
+                     width="stretch", hide_index=True)
+    st.download_button("엑셀로 내려받기 (초안)", to_xlsx(q, base),
+                       file_name=f"견적_{q.request.client}_{q.request.weeks}주.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 if res:
     with st.expander(f"에이전트 도구 호출 기록 ({res.steps}단계)"):

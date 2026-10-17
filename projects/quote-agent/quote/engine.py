@@ -211,6 +211,29 @@ def baseline_quote() -> Quote:
     return calculate(BASELINE)
 
 
+def sensitivity(req: QuoteRequest, week_step: int = 2) -> List[Dict[str, object]]:
+    """조건을 하나씩만 바꿨을 때 총액이 얼마나 변하는지(협상 자료). 인원은 역할별 ±1명, 기간은 ±week_step주.
+    마지막 한 명이나 1주 미만으로 줄이는 변경은 만들지 않는다. 모든 숫자는 calculate 결과다."""
+    base = calculate(req)
+    variants = []
+    for role in RATES:
+        have = req.team.get(role, 0)
+        for d in (1, -1):
+            team = {**req.team, role: have + d}
+            if have + d < 0 or have + d > 20 or sum(team.values()) < 1:
+                continue
+            variants.append((f"{role} {d:+d}명", {"team": {r: n for r, n in team.items() if n}}))
+    for d in (week_step, -week_step):
+        if 1 <= req.weeks + d <= 104:
+            variants.append((f"기간 {d:+d}주", {"weeks": req.weeks + d, "duration_months": None}))
+    rows = []
+    for name, update in variants:
+        q = calculate(req.model_copy(update=update))
+        rows.append({"변경": name, "총액(VAT 포함)": q.total, "차이(VAT 포함)": q.total - base.total,
+                     "필요 대비 투입(%)": round(q.capacity * 100), "경고 수": len(q.warnings)})
+    return rows
+
+
 # ---- 에이전트가 쓰는 탐색 도구: 팀 재설계 / 예산 맞추기 (둘 다 결정적 계산) ----
 def _team_candidates():
     for chief, cons, ana in product(range(0, 3), range(0, 7), range(0, 7)):
