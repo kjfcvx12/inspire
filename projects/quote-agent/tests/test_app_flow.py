@@ -113,3 +113,52 @@ def test_sidebar_puts_examples_and_switches_before_the_long_assumption_tables(ap
     assert kinds.index("toggle") < kinds.index("expander")
     top_level_tables = [k for k in kinds if k == "arrow_data_frame"]
     assert top_level_tables == []                        # 표 4개는 접힌 영역 안으로 들어갔다
+
+
+def test_demo_features_can_be_switched_off_for_real_service(monkeypatch, tmp_path):
+    """QUOTE_DEMO_MODE=0이면 예시 요청과 '시연 저장본' 체크박스가 사라지고, 예시 문장을 그대로 넣어도 저장본을 쓰지 않는다."""
+    from quote.examples import EXAMPLES
+    monkeypatch.setenv("QUOTE_DB_PATH", str(tmp_path / "q.db"))
+    monkeypatch.setenv("QUOTE_DEMO_MODE", "0")
+    calls = []
+    real = agent.run
+    monkeypatch.setattr(agent, "run", lambda text, **kw: (calls.append(text), real(text, **kw))[1])
+    at = AppTest.from_file(APP, default_timeout=60).run()
+    assert not any(r.label.startswith("예시 요청") for r in at.radio)
+    assert not any("시연 저장본" in c.label for c in at.checkbox)
+    at.toggle[0].set_value(False).run()                       # AI 끄기(외부 호출 없이)
+    at.text_area[0].set_value(EXAMPLES[0])
+    _submit(at)
+    assert len(calls) == 1 and not any("저장해 둔" in i.value for i in at.info)    # 예시 문장이어도 저장본을 쓰지 않고 실제 계산
+
+
+def _tab_labels(at):
+    return [t.label for t in at.tabs]
+
+
+def test_log_tab_is_hidden_when_there_is_no_reason_to_show_it(app):
+    """정상 결과(저장본 경로: mock 아님, 미검증 금액 없음)에서는 개발자용 '기록' 탭을 보이지 않는다."""
+    from quote.examples import EXAMPLES
+    at, calls = app
+    at.checkbox[0].set_value(True)
+    at.text_area[0].set_value(EXAMPLES[0])
+    _submit(at)
+    assert "기록" not in _tab_labels(at) and len(at.tabs) == 6
+
+
+def test_log_tab_appears_when_there_is_a_reason(app):
+    """AI 없이 규칙 기반(mock)으로 동작했으면 이유를 확인할 수 있게 '기록' 탭을 보인다."""
+    at, calls = app
+    at.text_area[0].set_value("고대 3개월 5명")
+    _submit(at)
+    assert "기록" in _tab_labels(at)
+
+
+def test_log_tab_can_be_forced_on(monkeypatch, app):
+    from quote.examples import EXAMPLES
+    at, calls = app
+    monkeypatch.setenv("QUOTE_SHOW_LOG", "1")
+    at.checkbox[0].set_value(True)
+    at.text_area[0].set_value(EXAMPLES[0])
+    _submit(at)
+    assert "기록" in _tab_labels(at)

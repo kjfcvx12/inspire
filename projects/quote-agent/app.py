@@ -1,6 +1,7 @@
 """견적 에이전트 (Streamlit). 요청 문장 → 에이전트가 도구로 시나리오 계산 → 기준안(서울대 PI) 대비 비교.
 단가·기준안은 공개 정보가 없어 가정값이다(사이드바에 표시). 견적은 담당자 검토 전 초안이다."""
 import copy
+import os
 from datetime import date
 
 import pandas as pd
@@ -18,11 +19,18 @@ from quote.engine import (CLIENT_SCALE, DELIVERABLE_WEIGHT, MODULE_WEIGHT, RATES
 from quote.examples import EXAMPLES
 from quote.export import to_xlsx
 
+DEMO_MODE = os.environ.get("QUOTE_DEMO_MODE", "1") != "0"   # 0이면 예시 요청과 시연 저장본을 모두 끈다(실제 서비스용)
 st.set_page_config(page_title="견적 에이전트", layout="wide")
+st.markdown("""<style>
+.block-container {padding-top: 1.2rem; padding-bottom: 1rem;}
+h1 {font-size: 1.7rem !important; padding: 0 0 .2rem 0 !important;}
+[data-testid="stVerticalBlock"] {gap: .6rem;}
+[data-testid="stAlert"] {padding: .5rem .8rem; font-size: .88rem;}
+[data-testid="stMetricValue"] {font-size: 2rem;}
+</style>""", unsafe_allow_html=True)
 st.title("용역 견적 에이전트")
-st.info("가정값 기반 초안이며 실제 견적이 아닙니다. 설명은 AI가 생성했고, 금액은 엔진이 계산합니다. "
-        "대학명은 예시이고 단가·기준안은 공개 정보가 없어 가정한 값입니다. 담당자 검토 전에는 고객에게 보내지 마세요. "
-        "금액 단위는 원, 공급가액은 부가세 별도, 합계는 부가세 포함입니다.")
+st.info("가정값 기반 초안이며 실제 견적이 아닙니다. 설명은 AI가, 금액은 엔진이 계산합니다. 담당자 검토 전에는 고객에게 보내지 마세요. "
+        "단위: 원(공급가액은 VAT 별도, 합계는 VAT 포함)")
 
 def _on_pick():
     """예시를 고르면 입력창에 채우고 바로 실행한다(시연 중 타이핑을 줄인다)."""
@@ -72,7 +80,7 @@ def assumption_editor():
 
 def run_request(text, use_ai, prefer_cache):
     """저장본 우선이면 예시 문장에 한해 저장본을 쓰고, API 장애로 mock이 됐을 때도 저장본이 있으면 대체한다."""
-    hit = lookup(text, load_cache())
+    hit = lookup(text, load_cache()) if DEMO_MODE else None
     st.session_state["replayed"] = False
     if hit and prefer_cache:
         st.session_state["replayed"] = True
@@ -86,10 +94,12 @@ def run_request(text, use_ai, prefer_cache):
 
 with st.sidebar:
     # 자주 쓰는 것(예시·스위치)을 맨 위에 두고, 길어지는 가정값 표는 접힌 영역 안에 둔다.
-    st.radio("예시 요청 (누르면 바로 실행)", EXAMPLES, index=None, key="example", on_change=_on_pick)
+    if DEMO_MODE:
+        st.radio("예시 요청 (누르면 바로 실행)", EXAMPLES, index=None, key="example", on_change=_on_pick)
     use_ai = st.toggle("AI 해석 사용", value=True, help="끄면 요청 문장을 외부 AI로 보내지 않고 규칙 기반으로만 해석합니다(정확도 낮음).")
-    prefer_cache = st.checkbox("시연 저장본 우선 사용 (네트워크 없이)",
-                               help="예시 문장과 정확히 같을 때만 미리 저장한 실제 결과를 보여줍니다. API가 안 될 때도 같은 저장본으로 대체합니다.")
+    prefer_cache = DEMO_MODE and st.checkbox(
+        "시연 저장본 우선 사용 (네트워크 없이)",
+        help="예시 문장과 정확히 같을 때만 미리 저장한 실제 결과를 보여줍니다. API가 안 될 때도 같은 저장본으로 대체합니다.")
     st.divider()
     with st.expander("가정값 보기"):
         st.caption(assumption_label() + " · 파일: data/assumptions.json")
@@ -101,7 +111,8 @@ with st.sidebar:
 
 # 입력창과 버튼을 폼으로 묶어, 타이핑만으로는 재실행되지 않게 한다(계산 중에 입력창을 건드려도 실행이 중단되지 않는다).
 with st.form("request_form", border=False):
-    text = st.text_area("견적 요청", key="req_text", height=90, placeholder="예: 고려대, 4개월, 6명, 상주 없음")
+    text = st.text_area("견적 요청", key="req_text", height=68, label_visibility="collapsed",
+                        placeholder="견적 요청을 입력하세요. 예: 고려대, 4개월, 6명, 상주 없음")
     clicked = st.form_submit_button("견적 만들기", type="primary")
 auto_text = st.session_state.pop("autorun_text", None)
 if clicked and not text.strip() and not auto_text:
@@ -198,7 +209,8 @@ def tab_basis(q):
     st.caption("이 금액은 어떻게 나왔나? (계산 근거)")
     ex = pd.DataFrame(explain(q))
     ex["한글 읽기"] = [f"{to_korean(int(a))} 원" if pd.notna(a) else "" for a in ex["금액"]]
-    st.dataframe(ex.style.format({"금액": "{:,.0f}"}, na_rep="-"), width="stretch", hide_index=True)
+    ex["금액"] = [f"{int(a):,}" if pd.notna(a) else "" for a in ex["금액"]]
+    st.dataframe(ex, width="stretch", hide_index=True)
     st.caption("하나씩 바꾸면? (민감도: 선택한 안 기준, VAT 포함)")
     sens = pd.DataFrame(sensitivity(q.request))
     st.dataframe(sens.style.format({"총액(VAT 포함)": "{:,.0f}", "차이(VAT 포함)": "{:+,.0f}"}),
@@ -275,37 +287,41 @@ else:
         saved = res.quotes[0].assumptions_version if res.quotes else ""
         now = engine._A["version"]
         changed = f" 저장본은 가정값 {saved}로 계산됐고 지금은 {now}라서 숫자가 다를 수 있습니다." if saved and saved != now else ""
-        st.info("미리 저장해 둔 시연 결과입니다. 실시간 계산이 아니며, 저장 당시의 가정값 버전으로 계산된 값입니다." + changed)
+        st.info("미리 저장해 둔 시연 결과입니다(실시간 계산 아님, 저장 당시 가정값 기준)." + changed)
     elif res.mock:
         st.warning("AI를 쓰지 않았거나 쓸 수 없어 규칙 기반 mock으로 동작했습니다. 해석 정확도가 낮습니다.")
+    show_log = bool(res.unverified or res.mock or os.environ.get("QUOTE_SHOW_LOG") == "1")
     if res.unverified:
         st.error("설명 속 다음 금액은 엔진 계산 결과에 없습니다. '견적서' 탭의 숫자를 기준으로 보세요: " + ", ".join(res.unverified))
     if not res.quotes:
         st.markdown(md_safe(annotate_won(res.text)))
-        t_hist, t_trace = st.tabs(["이력", "기록"])
-        with t_hist:
+        names = ["이력"] + (["기록"] if show_log else [])
+        tabs = dict(zip(names, st.tabs(names)))
+        with tabs["이력"]:
             tab_history()
-        with t_trace:
-            tab_trace(res)
+        if show_log:
+            with tabs["기록"]:
+                tab_trace(res)
     else:
         if "pending_view" in st.session_state:
             st.session_state["view_label"] = st.session_state.pop("pending_view")
         labels = [x.request.label for x in res.quotes]
-        label = st.radio("보고 있는 안", labels, horizontal=True, key="view_label")
+        label = st.radio("보고 있는 안", labels, horizontal=True, key="view_label", label_visibility="collapsed")
         q = next(x for x in res.quotes if x.request.label == label)
-        t_sum, t_sheet, t_cmp, t_basis, t_edit, t_hist, t_trace = st.tabs(
-            ["요약", "견적서", "비교", "근거·민감도", "조건 확인·수정", "이력", "기록"])
-        with t_sum:
+        names = ["요약", "견적서", "비교", "근거·민감도", "조건 확인·수정", "이력"] + (["기록"] if show_log else [])
+        tabs = dict(zip(names, st.tabs(names)))
+        with tabs["요약"]:
             tab_summary(res, q, base)
-        with t_sheet:
+        with tabs["견적서"]:
             tab_sheet(q, base)
-        with t_cmp:
+        with tabs["비교"]:
             tab_compare(res, q, base)
-        with t_basis:
+        with tabs["근거·민감도"]:
             tab_basis(q)
-        with t_edit:
+        with tabs["조건 확인·수정"]:
             tab_edit(res)
-        with t_hist:
+        with tabs["이력"]:
             tab_history()
-        with t_trace:
-            tab_trace(res)
+        if show_log:
+            with tabs["기록"]:
+                tab_trace(res)
