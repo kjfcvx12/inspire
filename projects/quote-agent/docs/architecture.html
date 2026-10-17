@@ -146,7 +146,7 @@
 
       <div class="node n-screen">
         <div class="top"><h3>1. 화면</h3><span class="file">app.py</span></div>
-        <p>입력창, 결과 탭(요약·견적서·비교·근거·조건 수정·이력·기록), 가정값 편집, 엑셀 내려받기.</p>
+        <p>입력창, 결과 탭(요약·견적서·비교·근거·조건 수정·이력, 기록 탭은 미검증 금액이나 mock일 때만), 가정값 편집, 엑셀 내려받기.</p>
         <div class="libs"><span class="lib">Streamlit 1.65</span><span class="lib">pandas 3.0</span></div>
       </div>
       <div class="link"><span>요청 문장 ↓ &nbsp;·&nbsp; 결과 ↑</span></div>
@@ -221,7 +221,7 @@
         <tr><td><span class="dot d-tool"></span>공통</td><td><b>tenacity</b></td><td class="ver">9.2.1</td><td>일시 오류 시 기다렸다 재시도</td><td><code>common/llm.py</code></td></tr>
         <tr><td><span class="dot d-tool"></span>공통</td><td><b>python-dotenv</b></td><td class="ver">1.2.4</td><td><code>.env</code>에서 API 키 읽기</td><td><code>common/envload.py</code></td></tr>
         <tr><td><span class="dot d-store"></span>저장</td><td><b>sqlite3</b>, json</td><td class="ver">파이썬 내장</td><td>견적 이력 DB, 가정값·저장본 파일</td><td><code>quote/history.py</code> 외</td></tr>
-        <tr><td><span class="dot d-store"></span>검사</td><td><b>pytest</b> · <b>ruff</b></td><td class="ver">9.1.1 · 0.17.0</td><td>테스트 115개, 코드 스타일 검사</td><td><code>tests/</code>, <code>scripts/check.py</code></td></tr>
+        <tr><td><span class="dot d-store"></span>검사</td><td><b>pytest</b> · <b>ruff</b></td><td class="ver">9.1.1 · 0.17.0</td><td>테스트 136개, 코드 스타일 검사</td><td><code>tests/</code>, <code>scripts/check.py</code></td></tr>
       </table>
     </div>
     <p class="muted" style="margin-top:8px; font-size:13px">에이전트 프레임워크(LangChain 등)는 쓰지 않고 도구 호출 반복을 직접 작성했습니다. 동작을 설명하고 반복 횟수를 직접 통제하기 위해서입니다.</p>
@@ -234,20 +234,20 @@
         <li><b>API가 안 될 때</b> 규칙 기반 대체 모드로 계속 동작합니다. 화면에 mock이라고 표시하고, 정확도는 낮습니다.</li>
         <li><b>민감한 건</b>은 사이드바에서 'AI 해석'을 끄면 요청 문장이 외부로 나가지 않습니다.</li>
         <li><b>반복 한도</b> 8번. 넘으면 계산된 범위까지만 보여줍니다.</li>
-        <li><b>테스트 115개</b>와 정답 예시 20+20건으로 숫자를 다시 확인할 수 있습니다.</li>
+        <li><b>테스트 136개</b>와 정답 예시 18+18건으로 숫자를 다시 확인할 수 있습니다.</li>
       </ul>
     </section>
     <section class="card">
       <h2>알려진 한계</h2>
       <ul class="plain">
-        <li><span class="flag">openpyxl이 requirements.txt에 빠져 있습니다.</span> 지금 PC에는 설치돼 있어 동작하지만 새 PC에서는 엑셀 내려받기가 실패할 수 있습니다.</li>
+        <li>실제 고객의 견적서 형식을 아직 모릅니다. 가정값 파일만 바꾸면 되도록 만들어 두었습니다.</li>
         <li>단가·기준안은 공개 정보가 없어 <b>모두 가정값</b>이고, 견적은 담당자 검토 전 초안입니다.</li>
         <li>AI 정답 예시 통과율은 실행마다 조금 달라질 수 있습니다(같은 날 17/18~18/18).</li>
       </ul>
     </section>
   </div>
 
-  <footer>근거: <code>projects/quote-agent</code> 소스, 설치된 패키지 버전, <code>pytest --collect-only</code>(115건). 확인 일자 2026-10-17.</footer>
+  <footer>근거: <code>projects/quote-agent</code> 소스, 설치된 패키지 버전, <code>pytest --collect-only</code>(136건). 확인 일자 2026-10-17.</footer>
 </div>
 </body>
 </html>
