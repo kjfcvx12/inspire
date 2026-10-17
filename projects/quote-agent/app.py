@@ -94,8 +94,12 @@ with st.sidebar:
                                help="예시 문장과 정확히 같을 때만 미리 저장한 실제 결과를 보여줍니다. API가 안 될 때도 같은 저장본으로 대체합니다.")
     st.radio("예시 요청 (누르면 바로 실행)", EXAMPLES, index=None, key="example", on_change=_on_pick)
 
-text = st.text_area("견적 요청", key="req_text", height=90, placeholder="예: 고려대, 4개월, 6명, 상주 없음")
-clicked = st.button("견적 만들기", type="primary", disabled=not text.strip())
+# 입력창과 버튼을 폼으로 묶어, 타이핑만으로는 재실행되지 않게 한다(계산 중에 입력창을 건드려도 실행이 중단되지 않는다).
+with st.form("request_form", border=False):
+    text = st.text_area("견적 요청", key="req_text", height=90, placeholder="예: 고려대, 4개월, 6명, 상주 없음")
+    clicked = st.form_submit_button("견적 만들기", type="primary")
+if clicked and not text.strip():
+    st.warning("요청 문장을 입력해 주세요.")
 if (clicked or st.session_state.pop("autorun", False)) and text.strip():
     with st.spinner("에이전트가 견적을 계산하는 중..."):
         try:
@@ -122,6 +126,7 @@ def tab_summary(res, q, base):
     c3.caption(f"{to_korean(q.total)} 원")
     for w in q.warnings:
         st.warning(w)
+    st.caption("자세한 내용은 위 탭에서 볼 수 있습니다: 견적서(화면에서 바로 확인) · 비교 · 근거·민감도 · 조건 확인·수정")
 
 
 def tab_sheet(q, base):
