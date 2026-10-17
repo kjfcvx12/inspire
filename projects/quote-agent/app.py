@@ -29,8 +29,7 @@ h1 {font-size: 1.7rem !important; padding: 0 0 .2rem 0 !important;}
 [data-testid="stMetricValue"] {font-size: 2rem;}
 </style>""", unsafe_allow_html=True)
 st.title("용역 견적 에이전트")
-st.info("가정값 기반 초안이며 실제 견적이 아닙니다. 설명은 AI가, 금액은 엔진이 계산합니다. 담당자 검토 전에는 고객에게 보내지 마세요. "
-        "단위: 원(공급가액은 VAT 별도, 합계는 VAT 포함)")
+st.info("가정값 기반 초안이며 실제 견적이 아닙니다 · 금액은 엔진, 설명은 AI · 담당자 검토 전 외부 전달 금지 · 단위 원")
 
 def _on_pick():
     """예시를 고르면 입력창에 채우고 바로 실행한다(시연 중 타이핑을 줄인다)."""
@@ -110,22 +109,31 @@ with st.sidebar:
     assumption_editor()
 
 # 입력창과 버튼을 폼으로 묶어, 타이핑만으로는 재실행되지 않게 한다(계산 중에 입력창을 건드려도 실행이 중단되지 않는다).
-with st.form("request_form", border=False):
-    text = st.text_area("견적 요청", key="req_text", height=68, label_visibility="collapsed",
-                        placeholder="견적 요청을 입력하세요. 예: 고려대, 4개월, 6명, 상주 없음")
-    clicked = st.form_submit_button("견적 만들기", type="primary")
+# 결과가 나오면 입력 영역을 접어서, 작은 화면에서도 결과(숫자)가 맨 위에 보이게 한다.
+# 라벨 끝의 보이지 않는 글자 수를 요청마다 바꿔, 사용자가 펼쳐 둔 상태가 다음 결과에서도 남지 않고 다시 접히게 한다.
+with st.expander("새 요청 입력" + "​" * (st.session_state.get("run_count", 0) % 2 + 1),
+                 expanded=not st.session_state.get("res")):
+    with st.form("request_form", border=False):
+        text = st.text_area("견적 요청", key="req_text", height=68, label_visibility="collapsed",
+                            placeholder="견적 요청을 입력하세요. 예: 고려대, 4개월, 6명, 상주 없음")
+        clicked = st.form_submit_button("견적 만들기", type="primary")
 auto_text = st.session_state.pop("autorun_text", None)
 if clicked and not text.strip() and not auto_text:
     st.warning("요청 문장을 입력해 주세요.")
 request_text = auto_text or (text.strip() if clicked else "")
+computed = False
 if request_text:
     with st.spinner("에이전트가 견적을 계산하는 중..."):
         try:
             st.session_state["res"] = run_request(request_text, use_ai, prefer_cache)
             st.session_state["last_request"] = request_text
+            computed = True
         except Exception as e:   # 화면이 예외 덤프로 죽지 않게, 이유를 알리고 이전 결과는 지운다
             st.session_state.pop("res", None)
             st.error(f"견적을 만들지 못했습니다: {type(e).__name__}: {str(e)[:150]}")
+if computed:
+    st.session_state["run_count"] = st.session_state.get("run_count", 0) + 1
+    st.rerun()   # 결과를 저장한 직후 한 번 다시 그려, 입력 영역이 접힌 상태로 결과가 처음 보이게 한다
 
 
 def won_text(n: int) -> str:

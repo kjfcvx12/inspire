@@ -162,3 +162,33 @@ def test_log_tab_can_be_forced_on(monkeypatch, app):
     at.text_area[0].set_value(EXAMPLES[0])
     _submit(at)
     assert "기록" in _tab_labels(at)
+
+
+def _request_expander(at):
+    return next(e for e in at.expander if "요청" in e.label)
+
+
+def test_request_area_is_open_at_first_and_collapses_once_a_result_exists(app):
+    """결과가 나오면 입력 영역을 접어, 작은 화면에서도 숫자가 맨 위에 보이게 한다."""
+    at, calls = app
+    assert _request_expander(at).proto.expanded is True
+    at.text_area[0].set_value("고대 3개월 5명")
+    _submit(at)
+    assert len(calls) == 1 and _request_expander(at).proto.expanded is False
+
+
+def test_top_banner_is_one_compact_message(app):
+    at, _ = app
+    assert len(at.info[0].value) <= 90 and "실제 견적이 아닙니다" in at.info[0].value
+
+
+def test_request_area_is_a_fresh_collapsed_element_for_every_new_result(app):
+    """사용자가 펼쳐 둔 입력 영역이 다음 결과에서도 남지 않도록, 요청마다 다른 요소(라벨)로 그린다."""
+    at, calls = app
+    at.text_area[0].set_value("고대 3개월 5명")
+    _submit(at)
+    first = _request_expander(at).label
+    at.text_area[0].set_value("연대 20주")
+    _submit(at)
+    second = _request_expander(at)
+    assert len(calls) == 2 and second.label != first and second.proto.expanded is False
