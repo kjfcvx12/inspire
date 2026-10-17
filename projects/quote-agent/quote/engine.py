@@ -65,10 +65,22 @@ class QuoteRequest(BaseModel):
             raise ValueError(f"산출물은 {list(DELIVERABLE_WEIGHT)} 중에서 1개 이상이어야 합니다 (잘못된 산출물: {bad})")
         return v
 
+    @field_validator("extra_items")
+    @classmethod
+    def _extras_unique(cls, v):
+        names = [e.name.strip().casefold() for e in v]
+        dup = sorted({n for n in names if names.count(n) > 1})
+        if dup:
+            raise ValueError(f"신규 항목 이름이 중복됩니다: {dup}. 하나로 합치거나 이름을 구분하세요")
+        return v
+
     @model_validator(mode="after")
     def _months_to_weeks(self):
         if self.duration_months is not None:
-            self.weeks = max(1, min(104, round(self.duration_months * WEEKS_PER_MONTH)))
+            weeks = max(1, min(104, round(self.duration_months * WEEKS_PER_MONTH)))
+            if "weeks" in self.model_fields_set and abs(self.weeks - weeks) > 1:
+                raise ValueError(f"weeks({self.weeks})와 duration_months({self.duration_months:g}개월={weeks}주)가 충돌합니다. 하나만 주세요")
+            self.weeks = weeks
         return self
 
 
@@ -143,6 +155,9 @@ def _allocation(req: QuoteRequest, supply: int) -> Dict[str, Dict[str, int]]:
                   for d in req.deliverables}
     for e in req.extra_items:
         out[f"신규: {e.name}"] = {"추정": _round(supply * base * e.effort_pct / 100 / required)}
+    last = out[list(out)[-1]]                      # 천 원 반올림 잔차를 마지막 칸에 붙여 합계가 공급가액과 정확히 같게 한다
+    key = list(last)[-1]
+    last[key] += supply - sum(v for row in out.values() for v in row.values())
     return out
 
 

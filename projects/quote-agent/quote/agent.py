@@ -87,8 +87,11 @@ def _run_tool(name: str, args: dict, res: AgentResult) -> str:
     if name in ("calculate_quote", "right_size_team", "fit_to_budget"):
         args = dict(args)
         budget = args.pop("budget_total", None)
+        base = BASELINE.model_dump()
+        if "duration_months" in args and "weeks" not in args:
+            base.pop("weeks")   # 개월로 받았으면 기준안의 주 값이 충돌하지 않게 뺀다
         try:
-            req = QuoteRequest(**{**BASELINE.model_dump(), **args})
+            req = QuoteRequest(**{**base, **args})
         except (ValidationError, TypeError) as e:
             return f"입력 오류: {str(e)[:300]}. 값을 고쳐 다시 호출하세요."
         if name == "calculate_quote":
@@ -150,21 +153,42 @@ def _wants(text: str, word: str) -> bool:
     return not re.search(_NEGATION.pattern.format(w=re.escape(word)), text)
 
 
+class MockParseError(ValueError):
+    """규칙 기반 해석이 조용히 틀린 값을 내는 대신, 이유를 알리고 멈춘다."""
+
+
+_ALIASES = {"서울대학교": ("서울대",), "고려대학교": ("고려대", "고대"), "연세대학교": ("연세대", "연대"),
+            "KAIST": ("카이스트", "kaist")}
+MAX_MOCK_CHARS = 2000   # 이보다 긴 입력은 거부한다(정규식·정수 변환 폭주 방지)
+
+
 def _mock_request(text: str) -> QuoteRequest:
+    if len(text) > MAX_MOCK_CHARS:   # 잘라서 해석하면 뒤쪽 조건을 조용히 놓치므로 거부한다
+        raise MockParseError(f"요청이 {MAX_MOCK_CHARS}자를 넘어 규칙 기반으로 해석할 수 없습니다")
     kw: dict = {"label": "요청(mock 해석)"}
-    for name in CLIENT_SCALE:
-        if name[:2] in text or name in text:
-            kw["client"] = name
-    if "고대" in text:
-        kw["client"] = "고려대학교"
-    if "연대" in text:
-        kw["client"] = "연세대학교"
-    if m := re.search(r"(\d+)\s*개월", text):
-        kw["weeks"] = max(1, round(int(m.group(1)) * 4.345))
-    elif m := re.search(r"(\d+)\s*주", text):
-        kw["weeks"] = int(m.group(1))
-    if m := re.search(r"(\d+)\s*명", text):
-        n = max(1, min(20, int(m.group(1))))
+    found = [c for c, names in _ALIASES.items() if any(n in text.lower() for n in names)]
+    if len(found) > 1:
+        raise MockParseError(f"여러 대학({', '.join(found)})이 함께 언급되어 한 번에 하나만 해석할 수 있습니다")
+    if found:
+        kw["client"] = found[0]
+    if m := re.search(r"(-?\d{1,5})\s*(개월|주)", text):
+        n = int(m.group(1))
+        weeks = round(n * 4.345) if m.group(2) == "개월" else n
+        if n < 1 or not 1 <= weeks <= 104:
+            raise MockParseError(f"기간 '{m.group(0)}'이 1주~104주(24개월) 범위를 벗어납니다")
+        kw["weeks"] = weeks
+    roles = {}
+    for role in RATES:
+        if m := re.search(rf"{re.escape(role)}\s*(\d{{1,5}})\s*명", text):
+            roles[role] = int(m.group(1))
+    if roles:
+        if any(n > 20 for n in roles.values()) or sum(roles.values()) < 1:
+            raise MockParseError(f"역할별 인원 {roles}은 역할당 0~20명, 합계 1명 이상이어야 합니다")
+        kw["team"] = {r: n for r, n in roles.items() if n}
+    elif m := re.search(r"(-?\d{1,5})\s*명", text):
+        n = int(m.group(1))
+        if not 1 <= n <= 20:
+            raise MockParseError(f"인원 '{m.group(0)}'이 1~20명 범위를 벗어납니다")
         team = {"PM": 1}
         order = ("컨설턴트", "분석가", "수석컨설턴트", "분석가", "컨설턴트")  # 합계가 n과 정확히 같도록 순환 배분
         for i in range(n - 1):
@@ -176,7 +200,15 @@ def _mock_request(text: str) -> QuoteRequest:
 
 
 def _mock(user_text: str, res: AgentResult, err: str) -> AgentResult:
-    q = calculate(_mock_request(user_text))
+    try:
+        q = calculate(_mock_request(user_text))
+    except (MockParseError, ValidationError) as e:
+        reason = str(e) if isinstance(e, MockParseError) else "; ".join(x["msg"] for x in e.errors())
+        res.mock = True
+        res.trace.append("mock: 해석 실패")
+        res.text = (f"(mock) 요청을 해석하지 못했습니다: {reason[:150]}. 조건을 다시 적거나 AI 해석을 켜 주세요. "
+                    f"원인: {err[:60]}")
+        return res
     res.quotes.append(q)
     res.trace.append("mock: 규칙 기반 해석 → calculate_quote")
     d = diff(baseline_quote(), q)

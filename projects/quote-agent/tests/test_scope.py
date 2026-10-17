@@ -27,7 +27,7 @@ def test_extra_item_limits():
 def test_allocation_sums_to_supply():
     q = calculate(QuoteRequest(extra_items=[ExtraItem(name="교육", effort_pct=10)]))
     total = sum(v for row in q.allocation.values() for v in row.values())
-    assert abs(total - q.supply) <= 1000 * 12
+    assert total == q.supply
 
 
 def test_selling_below_cost_is_flagged():
@@ -53,3 +53,22 @@ def test_fit_to_budget_respects_budget():
     assert opts and all(o.total <= 250_000_000 for o in opts)
     assert all(o.capacity >= 0.9 for o in opts)
     assert fit_to_budget(QuoteRequest(), 10_000_000) == []
+
+
+def test_duplicate_extra_item_names_rejected():
+    with pytest.raises(ValidationError):
+        QuoteRequest(extra_items=[ExtraItem(name="AI", effort_pct=10), ExtraItem(name="ai", effort_pct=10)])
+
+
+def test_weeks_and_months_conflict_rejected_but_months_alone_ok():
+    with pytest.raises(ValidationError):
+        QuoteRequest(weeks=52, duration_months=1)
+    assert QuoteRequest(weeks=13, duration_months=3).weeks == 13
+
+
+@pytest.mark.parametrize("kw", [{}, {"weeks": 8}, {"modules": ["연구기획"]}, {"deliverables": ["구축 방향"]},
+                                 {"extra_items": [ExtraItem(name="a", effort_pct=30), ExtraItem(name="b", effort_pct=20)]}])
+def test_allocation_always_sums_to_supply(kw):
+    q = calculate(QuoteRequest(**kw))
+    cells = [v for row in q.allocation.values() for v in row.values()]
+    assert sum(cells) == q.supply          # 천 원 반올림 잔차는 마지막 칸에 붙여 합계가 공급가액과 정확히 같다

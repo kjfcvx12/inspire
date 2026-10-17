@@ -73,3 +73,20 @@ def test_step_limit(monkeypatch):
     monkeypatch.setattr(llm, "create", lambda **kw: NS(content=[_block_tool(1, "get_baseline", {})]))
     r = agent.run("x", max_steps=3)
     assert r.steps == 3 and "한도" in r.text
+
+
+def test_mock_reads_kaist_alias_and_role_counts():
+    r = agent._mock_request("카이스트 8주 PM 1명 분석가 1명")
+    assert (r.client, r.weeks, r.team) == ("KAIST", 8, {"PM": 1, "분석가": 1})
+
+
+def test_mock_rejects_instead_of_silently_misreading_or_crashing():
+    for text in ["고대 1000주", "고대 -3주 6명", "고대 0명", "고대 50명", "연대 고대 비교", "고대 " + "9" * 5000 + "명"]:
+        r = agent.run(text, use_ai=False)           # 죽으면 안 된다
+        assert r.mock and r.quotes == [] and "해석하지 못" in r.text, text
+
+
+def test_duration_months_tool_input_is_not_overridden_by_baseline_weeks():
+    res = agent.AgentResult(text="")
+    agent._run_tool("calculate_quote", {"duration_months": 3}, res)
+    assert res.quotes[0].request.weeks == 13

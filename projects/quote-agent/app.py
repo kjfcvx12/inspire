@@ -11,7 +11,8 @@ from quote.export import to_xlsx
 
 st.set_page_config(page_title="견적 에이전트", layout="wide")
 st.title("용역 견적 에이전트")
-st.info("초안입니다. 담당자 검토 전에는 고객에게 보내지 마세요. 기준안과 단가는 공개 정보가 없어 가정값입니다. "
+st.info("가정값 기반 초안이며 실제 견적이 아닙니다. 설명은 AI가 생성했고, 금액은 엔진이 계산합니다. "
+        "대학명은 예시이고 단가·기준안은 공개 정보가 없어 가정한 값입니다. 담당자 검토 전에는 고객에게 보내지 마세요. "
         "금액 단위는 원, 공급가액은 부가세 별도, 합계는 부가세 포함입니다.")
 
 EXAMPLES = ["고려대에서 같은 용역을 3개월에 5명으로 요청했어. 견적 보여줘",
@@ -32,7 +33,11 @@ with st.sidebar:
 text = st.text_area("견적 요청", value=pick or "", height=90, placeholder="예: 고려대, 4개월, 6명, 상주 없음")
 if st.button("견적 만들기", type="primary", disabled=not text.strip()):
     with st.spinner("에이전트가 견적을 계산하는 중..."):
-        st.session_state["res"] = agent.run(text.strip(), use_ai=use_ai)
+        try:
+            st.session_state["res"] = agent.run(text.strip(), use_ai=use_ai)
+        except Exception as e:   # 화면이 예외 덤프로 죽지 않게, 이유를 알리고 이전 결과는 지운다
+            st.session_state.pop("res", None)
+            st.error(f"견적을 만들지 못했습니다: {type(e).__name__}: {str(e)[:150]}")
 
 res = st.session_state.get("res")
 base = baseline_quote()

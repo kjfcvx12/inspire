@@ -33,3 +33,17 @@ def test_budget_headroom_is_known_but_other_numbers_are_not():
     budget = 400_000_000
     assert unverified_amounts(f"예산이 {budget - q.total:,}원 남습니다", [q], extra=[budget]) == []
     assert unverified_amounts(f"예산이 {budget - q.total + 1:,}원 남습니다", [q], extra=[budget]) != []
+
+
+def test_integer_eok_and_cheon_man_are_not_waved_through():
+    q = baseline_quote()                                                       # 합계 353,560,000
+    assert unverified_amounts("총액은 4억원", [q]) == ["4억원"]
+    assert unverified_amounts("총액은 3억 9천만원", [q]) == ["3억 9천만원"]
+    assert unverified_amounts("총액은 3.5억원", [q]) == []
+
+
+def test_huge_text_is_fast():
+    import time
+    t = time.time()
+    unverified_amounts("억 " * 300_000 + "1," * 300_000, [baseline_quote()])
+    assert time.time() - t < 3
