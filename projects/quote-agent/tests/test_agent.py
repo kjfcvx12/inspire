@@ -2,6 +2,7 @@ from types import SimpleNamespace as NS
 
 from common import llm
 from quote import agent
+from quote.engine import QuoteRequest, calculate
 
 
 def _block_tool(i, name, inp):
@@ -15,6 +16,22 @@ def test_mock_fallback_when_api_down(monkeypatch):
     r = agent.run("고대에서 3개월, 5명, 상주로 견적 요청")
     assert r.mock and r.text.startswith("(mock)") and len(r.quotes) == 1
     assert r.quotes[0].request.client == "고려대학교" and r.quotes[0].request.onsite
+
+
+def test_mock_understands_negation_of_options():
+    r = agent._mock_request
+    assert not r("고려대, 4개월, 6명, 상주 없음").onsite           # 앱 placeholder 문구
+    assert not r("고려대 비상주로 진행").onsite
+    assert not r("연세대 영문 산출물은 불필요").english_deliverables
+    assert r("연세대 상주 필수").onsite and r("연세대 영문 산출물 포함").english_deliverables
+
+
+def test_scenario_labels_are_unique():
+    res = agent.AgentResult(text="")
+    for weeks in (10, 12, 14):
+        agent._add(res, calculate(QuoteRequest(weeks=weeks)))     # label은 모두 기본값 '견적'
+    labels = [q.request.label for q in res.quotes]
+    assert len(set(labels)) == 3
 
 
 def test_mock_team_size_matches_request():

@@ -62,7 +62,19 @@ def _quote_payload(q: Quote) -> dict:
 
 def _add(res: AgentResult, q: Quote) -> None:
     if all(q.request.model_dump() != o.request.model_dump() for o in res.quotes):   # 같은 조건 중복 방지
+        q.request.label = unique_label(q.request.label, [o.request.label for o in res.quotes])
         res.quotes.append(q)
+
+
+def unique_label(label: str, existing) -> str:
+    """같은 이름의 시나리오가 표 열을 덮어쓰지 않도록 번호를 붙인다('견적', '견적 (2)', ...). '기준안' 이름도 피한다."""
+    taken = {*existing, baseline_quote().request.label}
+    if label not in taken:
+        return label
+    n = 2
+    while f"{label} ({n})" in taken:
+        n += 1
+    return f"{label} ({n})"
 
 
 def _with_diff(q: Quote) -> dict:
@@ -128,6 +140,16 @@ def run(user_text: str, max_steps: int = MAX_STEPS, use_ai: bool = True) -> Agen
 
 
 # ---- mock 폴백: API 없이도 데모가 죽지 않게 하는 규칙 기반 파서(정확도 낮음, 화면에 mock 표시) ----
+_NEGATION = re.compile(r"{w}\s*(산출물|납품)?\s*(은|는|이|도)?\s*(없|불필요|아니|제외|안\s|미포함|필요\s*없)")
+
+
+def _wants(text: str, word: str) -> bool:
+    """키워드가 있고 '비상주'·'상주 없음'·'영문 불필요'처럼 부정되지 않았을 때만 True(규칙 기반 mock 전용)."""
+    if word not in text or f"비{word}" in text:
+        return False
+    return not re.search(_NEGATION.pattern.format(w=re.escape(word)), text)
+
+
 def _mock_request(text: str) -> QuoteRequest:
     kw: dict = {"label": "요청(mock 해석)"}
     for name in CLIENT_SCALE:
@@ -148,8 +170,8 @@ def _mock_request(text: str) -> QuoteRequest:
         for i in range(n - 1):
             team[order[i % len(order)]] = team.get(order[i % len(order)], 0) + 1
         kw["team"] = team
-    kw["onsite"] = "상주" in text
-    kw["english_deliverables"] = "영문" in text
+    kw["onsite"] = _wants(text, "상주")
+    kw["english_deliverables"] = _wants(text, "영문")
     return QuoteRequest(**{**BASELINE.model_dump(), **kw})
 
 

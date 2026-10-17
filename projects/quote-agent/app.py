@@ -60,7 +60,7 @@ if res and res.quotes:
             if st.form_submit_button("이 조건으로 다시 계산"):
                 try:
                     req = first.model_copy(update={
-                        "label": "수정 확인안", "weeks": int(weeks), "duration_months": None, "discount_pct": discount,
+                        "label": agent.unique_label("수정 확인안", [x.request.label for x in res.quotes]), "weeks": int(weeks), "duration_months": None, "discount_pct": discount,
                         "team": {r: n for r, n in team.items() if n}, "modules": modules, "deliverables": delivs,
                         "onsite": onsite, "english_deliverables": english})
                     res.quotes.append(calculate(QuoteRequest(**req.model_dump())))
