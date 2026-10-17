@@ -115,7 +115,7 @@ def won_text(n: int) -> str:
 
 
 def tab_summary(res, q, base):
-    st.markdown(md_safe(annotate_won(res.text)))
+    """숫자(공급가액·부가세·합계)를 먼저, 경고, 그 아래에 AI 설명 문장 순서로 보여준다."""
     d = diff(base, q)
     c1, c2, c3 = st.columns(3)
     c1.metric("공급가액 (VAT 별도)", f"{q.supply:,}원")
@@ -126,6 +126,7 @@ def tab_summary(res, q, base):
     c3.caption(f"{to_korean(q.total)} 원")
     for w in q.warnings:
         st.warning(w)
+    st.markdown(md_safe(annotate_won(res.text)))
     st.caption("자세한 내용은 위 탭에서 볼 수 있습니다: 견적서(화면에서 바로 확인) · 비교 · 근거·민감도 · 조건 확인·수정")
 
 

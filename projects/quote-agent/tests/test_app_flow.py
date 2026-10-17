@@ -51,3 +51,18 @@ def test_example_click_runs_immediately(app):
     at, calls = app
     at.radio[0].set_value(at.radio[0].options[0]).run()
     assert len(calls) == 1 and len(at.tabs) == 7
+
+
+def _has_metric(el):
+    """열 묶음 안에 있는 메트릭까지 찾는다."""
+    return el.type == "metric" or any(_has_metric(c) for c in getattr(el, "children", {}).values())
+
+
+def test_summary_tab_shows_numbers_before_the_ai_text(app):
+    at, calls = app
+    at.text_area[0].set_value("고대 3개월 5명")
+    _submit(at)
+    kids = [c for _, c in sorted(at.tabs[0].children.items())]
+    first_metric = next(i for i, c in enumerate(kids) if _has_metric(c))
+    ai_text = next(i for i, c in enumerate(kids) if c.type == "markdown" and "(mock)" in str(c.value))
+    assert first_metric < ai_text and ai_text < len(kids) - 1   # 숫자 → (경고) → AI 문장 → 안내 순서
