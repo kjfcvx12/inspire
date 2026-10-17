@@ -42,7 +42,7 @@ if res:
         df.loc["합계(VAT 포함)"] = [base.total] + [q.total for q in res.quotes]
         df.loc["필요 대비 투입 공수(%)"] = [round(base.capacity * 100)] + [round(q.capacity * 100) for q in res.quotes]
         st.subheader("시나리오 비교 (원)")
-        st.dataframe(df.style.format("{:,.0f}"), use_container_width=True)
+        st.dataframe(df.style.format("{:,.0f}"), width="stretch")
         for q in res.quotes:
             d = diff(base, q)
             st.markdown(f"**{md_safe(q.request.label)}** — 기준안 대비 {d['합계(VAT 포함)']:+,}원 · "

@@ -98,12 +98,10 @@ def _mock_request(text: str) -> QuoteRequest:
         kw["weeks"] = int(m.group(1))
     if m := re.search(r"(\d+)\s*명", text):
         n = max(1, min(20, int(m.group(1))))
-        team = {"PM": 1} if n >= 1 else {}
-        rest = n - 1
-        for role, share in (("수석컨설턴트", 0.2), ("컨설턴트", 0.4), ("분석가", 0.4)):
-            k = round(rest * share)
-            if k:
-                team[role] = k
+        team = {"PM": 1}
+        order = ("컨설턴트", "분석가", "수석컨설턴트", "분석가", "컨설턴트")  # 합계가 n과 정확히 같도록 순환 배분
+        for i in range(n - 1):
+            team[order[i % len(order)]] = team.get(order[i % len(order)], 0) + 1
         kw["team"] = team
     kw["onsite"] = "상주" in text
     kw["english_deliverables"] = "영문" in text

@@ -17,6 +17,11 @@ def test_mock_fallback_when_api_down(monkeypatch):
     assert r.quotes[0].request.client == "고려대학교" and r.quotes[0].request.onsite
 
 
+def test_mock_team_size_matches_request():
+    for n in (1, 2, 5, 9, 20):
+        assert sum(agent._mock_request(f"고대 {n}명").team.values()) == n
+
+
 def test_tool_loop_uses_engine_and_stops(monkeypatch):
     seq = iter([
         NS(content=[_block_tool(1, "calculate_quote", {"client": "연세대학교", "weeks": 12})]),
