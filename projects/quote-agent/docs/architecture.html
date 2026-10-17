@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>견적 에이전트 아키텍처</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1c2330; --muted: #5d6778; --line: #d9dee6;
+    --ui: #2b6cb0;    --ui-bg: #e8f1fb;
+    --agent: #7a4fc2; --agent-bg: #f0eafb;
+    --domain: #1f8a5b; --domain-bg: #e6f5ee;
+    --infra: #b7791f; --infra-bg: #fbf1de;
+    --data: #52606d;  --data-bg: #edf0f3;
+    --ext: #c0392b;   --ext-bg: #fbeaea;
+    --chip: #f1f3f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161d; --card: #1a202a; --ink: #e6eaf0; --muted: #98a3b5; --line: #2c3544;
+      --ui: #6fb0f2;    --ui-bg: #17283d;
+      --agent: #b996ee; --agent-bg: #261d3a;
+      --domain: #52c795; --domain-bg: #14291f;
+      --infra: #e6b45c; --infra-bg: #2f2512;
+      --data: #aab4c2;  --data-bg: #222a35;
+      --ext: #f0847a;   --ext-bg: #351b19;
+      --chip: #232b38;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.55 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .page { max-width: 1180px; margin: 0 auto; padding: 24px 16px 40px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 10px; letter-spacing: .02em; }
+  .sub { color: var(--muted); margin: 0 0 14px; }
+  code, .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }
+  .stat b { font-size: 16px; display: block; }
+  .stat span { color: var(--muted); font-size: 12px; }
+
+  section.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+
+  /* ---- 레이어 다이어그램 ---- */
+  .stack { display: grid; gap: 0; }
+  .layer { border: 1.5px solid var(--c); background: var(--cb); border-radius: 10px; padding: 10px 12px 12px; position: relative; }
+  .layer > .lname { font-weight: 700; color: var(--c); font-size: 13px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
+  .layer > .lname small { font-weight: 500; color: var(--muted); }
+  .arrow { text-align: center; color: var(--muted); font-size: 12px; line-height: 22px; }
+  .arrow b { color: var(--ink); }
+  .ui     { --c: var(--ui);     --cb: var(--ui-bg); }
+  .agent  { --c: var(--agent);  --cb: var(--agent-bg); }
+  .domain { --c: var(--domain); --cb: var(--domain-bg); }
+  .infra  { --c: var(--infra);  --cb: var(--infra-bg); }
+  .data   { --c: var(--data);   --cb: var(--data-bg); }
+  .ext    { --c: var(--ext);    --cb: var(--ext-bg); }
+
+  .grid { display: grid; gap: 8px; margin-top: 8px; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .box { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .box h3 { margin: 0 0 3px; font-size: 12.5px; }
+  .box p { margin: 0; color: var(--muted); font-size: 12px; }
+  .lib { display: inline-block; background: var(--c, var(--chip)); color: #fff; border-radius: 4px; padding: 0 6px;
+         font-size: 11px; font-weight: 600; margin: 4px 4px 0 0; }
+  .lib.lt { background: var(--chip); color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+  .row2 { display: grid; grid-template-columns: 1.55fr 1fr; gap: 16px; }
+
+  /* ---- 흐름 ---- */
+  ol.flow { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; counter-reset: s; }
+  ol.flow li { counter-increment: s; display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: start; }
+  ol.flow li::before { content: counter(s); background: var(--agent); color: #fff; border-radius: 50%; width: 22px; height: 22px;
+                       display: grid; place-items: center; font-size: 12px; font-weight: 700; margin-top: 1px; }
+  ol.flow li span { color: var(--muted); }
+
+  /* ---- 표 ---- */
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; }
+  td.ver { white-space: nowrap; }
+  .tag { display: inline-block; border-radius: 4px; padding: 0 6px; font-size: 11px; font-weight: 600; color: #fff; }
+  .t-ui { background: var(--ui); } .t-agent { background: var(--agent); } .t-domain { background: var(--domain); }
+  .t-infra { background: var(--infra); } .t-data { background: var(--data); } .t-test { background: #6b7280; }
+
+  ul.notes { margin: 0; padding-left: 18px; }
+  ul.notes li { margin-bottom: 4px; }
+  .warn { color: var(--ext); font-weight: 600; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); margin-top: 10px; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+  @media (max-width: 860px) {
+    .g3, .g4 { grid-template-columns: repeat(2, 1fr); }
+    .row2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) { .g2, .g3, .g4 { grid-template-columns: 1fr; } }
+  @media print { body { background: #fff; } .page { padding: 0; } section.card { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>용역 견적 에이전트 — 아키텍처</h1>
+  <p class="sub">서울대 연구행정시스템 PI 용역을 기준으로, 다른 대학의 변형 요청(기한·인원·범위·옵션)을 견적으로 비교해 보여주는 웹서비스.
+    핵심 원칙: <b>해석·설명은 LLM, 금액 계산은 파이썬 엔진, 설명 속 금액은 검증기가 대조</b>.</p>
+
+  <div class="stats">
+    <div class="stat"><b>Python 3.12</b><span>실행 환경 (uv/pip, 가상환경)</span></div>
+    <div class="stat"><b>Streamlit 1.65</b><span>UI 프레임워크 (단일 프로세스)</span></div>
+    <div class="stat"><b>claude-sonnet-5-5</b><span>도구 호출 에이전트 (Anthropic SDK)</span></div>
+    <div class="stat"><b>~1,680줄</b><span>app.py + quote/ + 사용 중인 common/</span></div>
+    <div class="stat"><b>115 tests</b><span>pytest · 골든셋 20+20건</span></div>
+  </div>
+
+  <!-- ===================== 1. 레이어 구조 ===================== -->
+  <section class="card">
+    <h2>1. 레이어 구조와 프레임워크·라이브러리 배치</h2>
+    <div class="stack">
+
+      <div class="layer ui">
+        <div class="lname">① 프레젠테이션 <small>app.py (298줄) · Streamlit 재실행 모델 + <code>st.session_state</code></small></div>
+        <div class="grid g4">
+          <div class="box"><h3>입력 폼</h3><p><code>st.form</code>으로 묶어 타이핑만으로 재실행되지 않게 함. 예시 클릭 즉시 실행.</p></div>
+          <div class="box"><h3>결과 탭 7개</h3><p><code>st.tabs</code>: 요약 · 견적서 · 비교 · 근거(계산 풀이+민감도) · 조건 수정 · 이력 · 기록</p></div>
+          <div class="box"><h3>사이드바</h3><p>현재 가정값 표, <code>st.data_editor</code> 가정값 편집기(<code>st.expander</code>), AI 사용 스위치, 시연 저장본, 예시 라디오.</p></div>
+          <div class="box"><h3>견적서·내려받기</h3><p>견적서 탭에서 바로 확인, <code>st.download_button</code> → 엑셀(.xlsx) 초안.</p></div>
+        </div>
+        <span class="lib" style="--c:var(--ui)">streamlit 1.65.0</span><span class="lib" style="--c:var(--ui)">pandas 3.0.6</span><span class="lib lt">common/ui.md_safe (~·$ 이스케이프)</span>
+      </div>
+      <div class="arrow">↓ <b>run_request(text, use_ai, prefer_cache)</b> &nbsp;·&nbsp; ↑ <b>AgentResult</b> (견적 목록, 경고, 설명문, 미검증 금액, 추적 로그)</div>
+
+      <div class="layer agent">
+        <div class="lname">② 에이전트 오케스트레이션 <small>quote/agent.py (233줄) · 직접 작성한 도구 호출 루프 (에이전트 프레임워크 미사용)</small></div>
+        <div class="grid g4">
+          <div class="box"><h3>도구 4개</h3><p><code>get_baseline</code> · <code>calculate_quote</code> · <code>right_size_team</code> · <code>fit_to_budget</code></p></div>
+          <div class="box"><h3>루프 하네스</h3><p>최대 8회 반복 한도. 입력 검증 오류(pydantic)는 모델에 돌려 재시도. 강제 <code>tool_choice</code> 미사용(Sonnet 5.5에서 400).</p></div>
+          <div class="box"><h3>mock 폴백</h3><p>API 실패 또는 'AI 해석 끄기' 시 정규식 규칙 파서로 동작(화면에 mock 표시). 별칭·부정어·범위 밖 값 처리.</p></div>
+          <div class="box"><h3>시연 저장본</h3><p><code>quote/replay.py</code>: 예시 5건의 실제 결과를 JSON으로 저장·재생. mock 결과는 저장 안 함.</p></div>
+        </div>
+        <span class="lib" style="--c:var(--agent)">anthropic tool-use</span><span class="lib lt">json · re (stdlib)</span>
+      </div>
+      <div class="arrow">↓ <b>QuoteRequest</b> (pydantic 검증) &nbsp;·&nbsp; ↑ <b>Quote</b> (항목별 금액, 배분표, 경고, 가정값 version)</div>
+
+      <div class="layer domain">
+        <div class="lname">③ 도메인 로직 (결정적·LLM 없음) <small>quote/ 12개 파일 · 숫자는 전부 테스트로 재현</small></div>
+        <div class="grid g4">
+          <div class="box"><h3>engine.py (312줄)</h3><p>공수→원가→간접비·이익→공급가액→VAT, 단계×산출물 배분, 민감도, 팀 재설계, 예산 맞추기.</p></div>
+          <div class="box"><h3>assumptions.py / _io.py</h3><p>단가·비중·가산율·임계값 로드·검증·저장(임시파일→교체, 검증 실패 시 파일 불변). 버전 증가.</p></div>
+          <div class="box"><h3>verify.py</h3><p>설명문 속 금액(원·억·만 축약 포함)을 엔진 결과와 대조 → 불일치는 '미검증' 표시.</p></div>
+          <div class="box"><h3>explain · document · korean</h3><p>계산 근거 풀이 표, 화면용 견적서, 금액 한글 읽기('마이너스' 처리).</p></div>
+          <div class="box"><h3>export.py</h3><p>4시트 엑셀. 모든 문자열 셀을 텍스트로 고정(수식 주입 방지).</p></div>
+          <div class="box"><h3>history.py</h3><p>견적 이력과 수주·탈락·보류 결과 기록.</p></div>
+          <div class="box"><h3>evaltarget.py · examples.py</h3><p>골든셋 평가 대상 어댑터, 예시 문장.</p></div>
+          <div class="box"><h3>replay.py</h3><p>(② 와 공유) 저장본 조회·직렬화.</p></div>
+        </div>
+        <span class="lib" style="--c:var(--domain)">pydantic 2.14.1</span><span class="lib" style="--c:var(--domain)">openpyxl 3.1.5</span><span class="lib lt">sqlite3 · functools · itertools (stdlib)</span>
+      </div>
+      <div class="arrow">↓ LLM 호출은 항상 <b>common.llm</b> 한 곳을 경유 &nbsp;·&nbsp; 설정·로그는 <b>common</b> 모듈</div>
+
+      <div class="row2">
+        <div class="layer infra">
+          <div class="lname">④ 인프라 공통 모듈 <small>common/ (프로젝트에 복사된 키트 중 사용분)</small></div>
+          <div class="grid g2">
+            <div class="box"><h3>llm.py (182줄)</h3><p>Anthropic 클라이언트(SDK 자체 재시도 끔), <b>tenacity</b> 지수 백오프(429·5xx·연결 오류만 3회), 시스템 프롬프트 캐싱, <code>LLMUnavailable</code> → mock 폴백.</p></div>
+            <div class="box"><h3>usage_log.py</h3><p>성공 호출마다 토큰·비용을 <code>logs/usage.jsonl</code>에 기록 → <code>scripts/cost_report.py</code>.</p></div>
+            <div class="box"><h3>envload.py</h3><p><b>python-dotenv</b>로 프로젝트 루트 <code>.env</code>만 읽음(상위 폴더 탐색 없음).</p></div>
+            <div class="box"><h3>evalkit.py</h3><p>골든셋 채점·통과율. <code>scripts/eval.py</code>가 사용.</p></div>
+          </div>
+          <span class="lib" style="--c:var(--infra)">anthropic 1.13.0</span><span class="lib" style="--c:var(--infra)">tenacity 9.2.1</span><span class="lib" style="--c:var(--infra)">python-dotenv 1.2.4</span>
+        </div>
+
+        <div style="display:grid; gap:8px;">
+          <div class="layer data">
+            <div class="lname">⑤ 저장소 <small>파일 기반, 별도 서버 없음</small></div>
+            <div class="grid">
+              <div class="box"><h3>data/assumptions.json</h3><p>가정값 v1 (단가·비중·가산율). 실제 견적서를 받으면 이 파일만 교체.</p></div>
+              <div class="box"><h3>data/quotes.db (SQLite)</h3><p>견적 이력. 경로는 <code>QUOTE_DB_PATH</code>로 교체 가능.</p></div>
+              <div class="box"><h3>data/demo_cache.json · logs/</h3><p>시연 저장본, 사용량·평가 로그.</p></div>
+            </div>
+          </div>
+          <div class="layer ext">
+            <div class="lname">⑥ 외부 서비스</div>
+            <div class="box" style="margin-top:8px"><h3>Anthropic Messages API</h3><p>모델 <code>claude-sonnet-5-5</code> (<code>CLAUDE_MODEL</code>로 교체). 키는 <code>.env</code>, 커밋 금지.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><span class="tag t-ui">UI</span> 프레젠테이션</span>
+      <span><span class="tag t-agent">Agent</span> LLM 오케스트레이션</span>
+      <span><span class="tag t-domain">Domain</span> 결정적 계산·검증</span>
+      <span><span class="tag t-infra">Infra</span> 호출·설정·로그</span>
+      <span><span class="tag t-data">Data</span> 저장소</span>
+    </div>
+  </section>
+
+  <div class="row2">
+    <!-- ===================== 2. 요청 흐름 ===================== -->
+    <section class="card">
+      <h2>2. 요청 한 건의 흐름</h2>
+      <ol class="flow">
+        <li><div><b>입력</b> — 폼 제출(<code>app.py</code>). 빈 입력은 경고, 시연 저장본이 켜져 있으면 <code>replay.lookup</code>으로 즉시 반환.<br><span>Streamlit · session_state</span></div></li>
+        <li><div><b>해석·도구 선택</b> — <code>agent.run</code>이 <code>llm.create(tools=TOOLS)</code>를 호출. 모델이 조건을 구조화해 도구를 부름.<br><span>anthropic · tenacity 재시도 · 실패 시 mock</span></div></li>
+        <li><div><b>검증</b> — 도구 인자를 <code>QuoteRequest</code>로 파싱(범위·중복·충돌 거부). 대학 별칭은 <code>client_aliases</code>로 정규화.<br><span>pydantic v2 validators</span></div></li>
+        <li><div><b>계산</b> — <code>engine.calculate</code> 결정적 계산. 기준안 대비 diff, 필요하면 <code>right_size_team</code>/<code>fit_to_budget</code>.<br><span>순수 파이썬, LLM 없음</span></div></li>
+        <li><div><b>결과 회신 루프</b> — 도구 결과(JSON)를 모델에 돌려 최대 8회까지 반복, 마지막에 설명문 작성.<br><span>반복 한도 도달 시 계산된 범위까지만 표시</span></div></li>
+        <li><div><b>금액 대조</b> — <code>verify.unverified_amounts</code>가 설명문 금액을 엔진 결과와 비교, 불일치는 '미검증'.<br><span>정규식 기반, 길이 상한에도 지연 없음</span></div></li>
+        <li><div><b>표시·저장</b> — 탭별 렌더, 엑셀 생성, 이력 저장(SQLite), 사용량 기록(JSONL).<br><span>pandas · openpyxl · sqlite3</span></div></li>
+      </ol>
+    </section>
+
+    <!-- ===================== 3. 하네스 ===================== -->
+    <section class="card">
+      <h2>3. 안전장치(하네스)</h2>
+      <table>
+        <tr><th>장치</th><th>도구</th><th>역할</th></tr>
+        <tr><td>정적 검사</td><td class="ver">ruff 0.17.0</td><td>린트 (<code>ruff.toml</code>)</td></tr>
+        <tr><td>단위·흐름 테스트</td><td class="ver">pytest 9.1.1</td><td>115건. 엔진·에이전트(mock)·검증기·내보내기·가정값·앱 흐름(<code>AppTest</code>)</td></tr>
+        <tr><td>골든셋</td><td class="ver">common/evalkit</td><td>엔진 20건(오프라인) · 에이전트 20건(API, 비용 발생)</td></tr>
+        <tr><td>한 번에 검사</td><td class="ver">scripts/check.py</td><td>컴파일 + ruff + pytest + 환경 (<code>--api</code>로 실호출)</td></tr>
+        <tr><td>비용 리포트</td><td class="ver">scripts/cost_report.py</td><td><code>logs/usage.jsonl</code> 집계</td></tr>
+        <tr><td>폴백</td><td class="ver">mock 파서</td><td>API 장애·AI 끄기에도 데모가 죽지 않음</td></tr>
+      </table>
+    </section>
+  </div>
+
+  <!-- ===================== 4. 라이브러리 표 ===================== -->
+  <section class="card">
+    <h2>4. 프레임워크·라이브러리 한눈에 (설치된 실제 버전)</h2>
+    <table>
+      <tr><th>분류</th><th>이름</th><th>버전</th><th>역할</th><th>사용 위치</th></tr>
+      <tr><td><span class="tag t-ui">UI</span></td><td><b>Streamlit</b></td><td class="ver mono">1.65.0</td><td>웹 UI·세션 상태·폼·탭·표 편집·다운로드</td><td><code>app.py</code></td></tr>
+      <tr><td><span class="tag t-ui">UI</span></td><td><b>pandas</b></td><td class="ver mono">3.0.6</td><td>표(DataFrame) 렌더링·편집 데이터</td><td><code>app.py</code></td></tr>
+      <tr><td><span class="tag t-agent">Agent</span></td><td><b>anthropic</b> (SDK)</td><td class="ver mono">1.13.0</td><td>Messages API, 도구 호출(tool use), 프롬프트 캐싱</td><td><code>common/llm.py</code> 단독 (호출부는 <code>quote/agent.py</code>·<code>replay.py</code>가 <code>common.llm</code>을 경유)</td></tr>
+      <tr><td><span class="tag t-domain">Domain</span></td><td><b>pydantic</b> v2</td><td class="ver mono">2.14.1</td><td>요청·견적 모델, 입력 검증(validator)</td><td><code>quote/engine.py</code></td></tr>
+      <tr><td><span class="tag t-domain">Domain</span></td><td><b>openpyxl</b></td><td class="ver mono">3.1.5</td><td>엑셀 4시트 생성, 텍스트 셀 고정</td><td><code>quote/export.py</code></td></tr>
+      <tr><td><span class="tag t-infra">Infra</span></td><td><b>tenacity</b></td><td class="ver mono">9.2.1</td><td>지수 백오프 재시도 (재시도 가능한 오류만)</td><td><code>common/llm.py</code></td></tr>
+      <tr><td><span class="tag t-infra">Infra</span></td><td><b>python-dotenv</b></td><td class="ver mono">1.2.4</td><td><code>.env</code> 로딩</td><td><code>common/envload.py</code></td></tr>
+      <tr><td><span class="tag t-data">Data</span></td><td><b>sqlite3</b> · json (표준 라이브러리)</td><td class="ver mono">내장</td><td>견적 이력 DB, 가정값·저장본 파일</td><td><code>quote/history.py</code> · <code>assumptions.py</code> · <code>replay.py</code></td></tr>
+      <tr><td><span class="tag t-test">Test</span></td><td><b>pytest</b> · <b>ruff</b></td><td class="ver mono">9.1.1 · 0.17.0</td><td>테스트·린트</td><td><code>tests/</code> · <code>scripts/check.py</code></td></tr>
+    </table>
+  </section>
+
+  <!-- ===================== 5. 설계 결정 / 주의 ===================== -->
+  <div class="row2">
+    <section class="card">
+      <h2>5. 핵심 설계 결정 (이유 한 줄)</h2>
+      <ul class="notes">
+        <li><b>금액은 파이썬 엔진이 계산</b> — 숫자는 테스트로 재현·검증돼야 하므로 LLM에 맡기지 않음.</li>
+        <li><b>설명 속 금액을 엔진 결과와 대조</b> — 모델이 반올림·지어낸 금액을 화면에서 '미검증'으로 드러내려고.</li>
+        <li><b>도구 호출 루프 직접 구현 + 반복 한도</b> — 프레임워크 없이 동작을 설명·통제할 수 있고, 무한 루프를 막음.</li>
+        <li><b>호출은 <code>common.llm</code> 한 곳 경유</b> — 재시도·mock 폴백·비용 기록을 한곳에서 보장.</li>
+        <li><b>단가·비중은 <code>assumptions.json</code>로 분리 + 버전 기록</b> — 공개 정보가 없어 가정이므로 숨기지 않고, 실제 견적서를 받으면 파일만 교체.</li>
+        <li><b>민감 건은 AI 끄기 모드</b> — 요청 문장을 외부로 보내지 않고 규칙 파서로만 처리.</li>
+      </ul>
+    </section>
+    <section class="card">
+      <h2>6. 알려진 한계·불일치 (코드 확인 결과)</h2>
+      <ul class="notes">
+        <li><span class="warn">openpyxl이 requirements.txt에 없음</span> — 엑셀 내보내기가 쓰는데 현재 환경에는 설치돼 있어 동작. 새 환경에서는 설치 누락 위험.</li>
+        <li>키트의 <code>common/db · structured · textsearch · docloader · embedsearch</code>는 이 앱에서 사용하지 않음 (검색 평가 스크립트만 일부 사용).</li>
+        <li><code>.env.example</code>의 Langfuse·Supabase 항목은 아직 코드에 연결되지 않음.</li>
+        <li>단가·기준안은 모두 <b>가정값</b>, 견적은 담당자 검토 전 초안.</li>
+        <li>에이전트 골든셋 통과율은 실행마다 달라질 수 있음 (같은 날 17/18~18/18 관찰).</li>
+        <li>실행 환경 Python은 3.12.15 (프로젝트 문서의 3.11과 다름).</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer>근거: <code>projects/quote-agent</code>의 소스·<code>requirements.txt</code>·설치된 패키지 버전·<code>pytest --collect-only</code>(115건)·<code>docs/decisions.md</code>. 줄 수는 <code>wc -l</code> 기준.</footer>
+</div>
+</body>
+</html>
