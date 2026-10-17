@@ -72,3 +72,27 @@ def test_allocation_always_sums_to_supply(kw):
     q = calculate(QuoteRequest(**kw))
     cells = [v for row in q.allocation.values() for v in row.values()]
     assert sum(cells) == q.supply          # 천 원 반올림 잔차는 마지막 칸에 붙여 합계가 공급가액과 정확히 같다
+
+
+@pytest.mark.parametrize("given,canonical", [
+    ("고대", "고려대학교"), ("연대", "연세대학교"), ("카이스트", "KAIST"), ("kaist", "KAIST"), (" 서울대 ", "서울대학교"),
+    ("고려대", "고려대학교"), ("고려대학교", "고려대학교"), ("한양대학교", "한양대학교"),
+])
+def test_client_aliases_are_normalized_before_calculation(given, canonical):
+    assert QuoteRequest(client=given).client == canonical
+
+
+def test_alias_changes_scale_but_unknown_name_still_warns():
+    assert calculate(QuoteRequest(client="고대")).required_mm == calculate(QuoteRequest(client="고려대학교")).required_mm
+    assert any("규모 계수" in w for w in calculate(QuoteRequest(client="한양대")).warnings)
+
+
+def test_aliases_come_from_config():
+    import copy
+
+    from quote.assumptions import DEFAULTS
+    from quote.engine import apply_assumptions
+    cfg = copy.deepcopy(DEFAULTS)
+    cfg["client_aliases"] = {**cfg["client_aliases"], "한대": "한양대학교"}
+    apply_assumptions(cfg)
+    assert QuoteRequest(client="한대").client == "한양대학교"

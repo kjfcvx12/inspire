@@ -41,6 +41,14 @@ class QuoteRequest(BaseModel):
     support_months: int = Field(0, ge=0, le=24, description="종료 후 사후 지원 개월 수")
     discount_pct: float = Field(0.0, ge=0, description="협약 할인율(%)")
 
+    @field_validator("client")
+    @classmethod
+    def _client_alias(cls, v):
+        """'고대'·'카이스트' 같은 줄임말을 정식 명칭으로 바꾼다(없는 이름은 그대로 두어 규모 계수 경고가 나게 한다)."""
+        name = v.strip()
+        table = {k.strip().casefold(): full for k, full in _A["client_aliases"].items()}
+        return table.get(name.casefold(), name)
+
     @field_validator("team")
     @classmethod
     def _team(cls, v):
