@@ -144,7 +144,7 @@ def run(user_text: str, max_steps: int = MAX_STEPS, use_ai: bool = True) -> Agen
 
 
 # ---- mock 폴백: API 없이도 데모가 죽지 않게 하는 규칙 기반 파서(정확도 낮음, 화면에 mock 표시) ----
-_NEGATION = re.compile(r"{w}\s*(산출물|납품)?\s*(은|는|이|도)?\s*(없|불필요|아니|제외|안\s|미포함|필요\s*없)")
+_NEGATION = re.compile(r"{w}\s*(산출물|납품)?\s*(은|는|이|도)?\s*(필요)?\s*(하지\s*)?(없|불필요|아니|아님|제외|안\s|않|미포함|불가)")
 
 
 def _wants(text: str, word: str) -> bool:

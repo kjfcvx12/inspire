@@ -107,3 +107,14 @@ def test_mock_role_names_do_not_match_inside_longer_role_names():
     assert r("수석컨설턴트 2명 PM 1명 12주").team == {"PM": 1, "수석컨설턴트": 2}
     full = r("PM 1명 수석컨설턴트 1명 컨설턴트 2명 분석가 2명 16주")      # 이 서비스의 대표 팀 구성 문장
     assert full.team == {"PM": 1, "수석컨설턴트": 1, "컨설턴트": 2, "분석가": 2}
+
+
+def test_mock_understands_more_ways_to_say_no_onsite():
+    """'상주 아님', '상주하지 않음', '상주는 필요하지 않습니다', '상주 불가'도 상주 없음으로 읽고, 긍정 표현은 그대로 상주로 읽는다."""
+    r = agent._mock_request
+    for no in ["상주 아님", "상주하지 않음", "상주는 필요하지 않습니다", "상주 불가", "상주 없음", "비상주", "상주 제외"]:
+        assert not r(f"고려대 3개월 5명 {no}").onsite, no
+    for yes in ["상주 필수", "상주 포함", "상주해야 함", "상주 필요", "현장 상주 요청"]:
+        assert r(f"고려대 3개월 5명 {yes}").onsite, yes
+    assert not r("연세대 영문 산출물은 필요하지 않습니다").english_deliverables
+    assert r("연세대 영문 산출물 포함").english_deliverables
